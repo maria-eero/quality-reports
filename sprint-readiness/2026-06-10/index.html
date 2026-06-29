@@ -6,85 +6,119 @@
 <title>Sprint Readiness Audit — CNM 26.7</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --border: #2a2d3a;
-    --text: #e4e4e7;
-    --muted: #9ca3af;
-    --accent: #6366f1;
-    --red: #ef4444;
-    --orange: #f97316;
-    --yellow: #eab308;
-    --green: #22c55e;
-  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    background: #ffffff;
+    color: #172b4d;
     line-height: 1.7;
-    padding: 32px 24px;
+    padding: 40px 24px;
+    font-size: 14px;
   }
   #content {
     max-width: 900px;
     margin: 0 auto;
   }
-  h1 { font-size: 1.8rem; margin: 32px 0 8px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-  h2 { font-size: 1.4rem; margin: 32px 0 12px; color: var(--accent); }
-  h3 { font-size: 1.1rem; margin: 24px 0 8px; }
-  p { margin: 12px 0; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  strong { color: var(--text); }
-  code {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-size: 0.85em;
+  .back-link {
+    display: inline-block;
+    margin-bottom: 24px;
+    color: #6b778c;
+    font-size: 0.85rem;
+    text-decoration: none;
   }
-  blockquote {
-    border-left: 3px solid var(--accent);
-    background: rgba(99,102,241,0.08);
-    padding: 12px 20px;
-    margin: 16px 0;
-    border-radius: 0 8px 8px 0;
+  .back-link:hover { color: #0052cc; }
+
+  /* Typography — Confluence-like */
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 600;
+    color: #172b4d;
+    margin: 32px 0 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #dfe1e6;
   }
-  blockquote p { margin: 4px 0; }
+  h2 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #172b4d;
+    margin: 36px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ebecf0;
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #172b4d;
+    margin: 24px 0 8px;
+  }
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #42526e;
+    margin: 20px 0 8px;
+  }
+  p { margin: 10px 0; color: #172b4d; }
+  a { color: #0052cc; text-decoration: none; }
+  a:hover { text-decoration: underline; color: #0065ff; }
+  strong { color: #172b4d; }
+  em { color: #42526e; }
+
+  /* Tables — Confluence style */
   table {
     width: 100%;
     border-collapse: collapse;
     margin: 16px 0;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
   }
   th {
     text-align: left;
-    color: var(--muted);
-    font-weight: 500;
-    padding: 10px 12px;
-    border-bottom: 2px solid var(--border);
-    background: var(--surface);
+    font-weight: 600;
+    color: #42526e;
+    padding: 8px 12px;
+    background: #f4f5f7;
+    border-bottom: 2px solid #dfe1e6;
   }
   td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    border-bottom: 1px solid #ebecf0;
+    color: #172b4d;
   }
-  tr:hover td { background: rgba(99,102,241,0.03); }
-  ul, ol { margin: 12px 0; padding-left: 24px; }
-  li { margin: 6px 0; }
+  tr:hover td { background: #fafbfc; }
+
+  /* Blockquotes */
+  blockquote {
+    border-left: 3px solid #0052cc;
+    background: #f4f5f7;
+    padding: 12px 20px;
+    margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+    color: #42526e;
+  }
+  blockquote p { margin: 4px 0; color: #42526e; }
+
+  /* Lists */
+  ul, ol { margin: 10px 0; padding-left: 24px; }
+  li { margin: 4px 0; }
+
+  /* Horizontal rule */
   hr {
     border: none;
-    border-top: 1px solid var(--border);
-    margin: 32px 0;
+    border-top: 1px solid #dfe1e6;
+    margin: 28px 0;
   }
-  .back-link {
-    display: inline-block;
-    margin-bottom: 24px;
-    color: var(--muted);
-    font-size: 0.85rem;
+
+  /* Code */
+  code {
+    background: #f4f5f7;
+    border: 1px solid #dfe1e6;
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-size: 0.85em;
+    color: #172b4d;
   }
-  .back-link:hover { color: var(--accent); }
+
+  /* Status colors for emoji indicators */
+  .markdown-body { }
 </style>
 </head>
 <body>
