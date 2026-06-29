@@ -117,10 +117,10 @@
 
 <!-- Tab Navigation -->
 <div class="tab-bar">
-  <button class="tab-btn active" onclick="switchTab('recent')">Last 30 Days</button>
-  <button class="tab-btn" onclick="switchTab('sixty')">60-Day View</button>
-  <button class="tab-btn" onclick="switchTab('verification')">Code Verification</button>
-  <button class="tab-btn" onclick="switchTab('poc')">Proof of Concept</button>
+  <button class="tab-btn active" onclick="switchTab('recent', this)">Last 30 Days</button>
+  <button class="tab-btn" onclick="switchTab('sixty', this)">60-Day View</button>
+  <button class="tab-btn" onclick="switchTab('verification', this)">Code Verification</button>
+  <button class="tab-btn" onclick="switchTab('poc', this)">Proof of Concept</button>
 </div>
 
 <!-- ==================== TAB 1: RECENT (9 DAYS) ==================== -->
@@ -804,11 +804,11 @@ function initCharts() {
   });
 }
 
-function switchTab(id) {
+function switchTab(id, btn) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
-  event.target.classList.add('active');
+  btn.classList.add('active');
 }
 
 initCharts();
