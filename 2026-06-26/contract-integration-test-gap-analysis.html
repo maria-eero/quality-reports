@@ -137,14 +137,14 @@
     <div class="stat-sub">~5-8 from interface mismatches</div>
   </div>
   <div class="card">
-    <h3>Preventable by Tests</h3>
-    <div class="stat stat-green">18</div>
-    <div class="stat-sub">bugs listed in the 4 tables below</div>
+    <h3>Preventable by Contract/Integration Tests</h3>
+    <div class="stat stat-green">12</div>
+    <div class="stat-sub">bugs in the tables below</div>
   </div>
   <div class="card">
     <h3>Sentry Events (chronic)</h3>
     <div class="stat stat-yellow">375K+</div>
-    <div class="stat-sub">from 5 contract-violation bugs</div>
+    <div class="stat-sub">from 7 contract-violation bugs</div>
   </div>
 </div>
 
@@ -171,8 +171,8 @@
 </div>
 
 <div class="callout">
-  <strong>Key Insight:</strong> The top 5 chronic contract-violation bugs have generated <strong>375,000+ Sentry events</strong>
-  over periods of 6-20 months. A single contract test per interface would have caught each at PR time.
+  <strong>Key Insight:</strong> 7 chronic contract-violation bugs have generated <strong>375,000+ Sentry events</strong>
+  over periods of 6-20 months. Going forward, contract tests at these boundaries would prevent recurrence of these failure categories.
 </div>
 
 <!-- Section 1: Still Firing in Production -->
@@ -215,34 +215,29 @@
 </table>
 </div>
 
-<!-- Section 3: Unfixed State Sync -->
-<div class="section-title">Unfixed: State Sync Failures (Customer-Facing)</div>
-<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">These are open P0/P1 bugs where the UI shows incorrect state. Users are making decisions based on wrong information.</p>
+<!-- Section 3: Related Gaps (not contract/integration testable in CI) -->
+<div class="section-title">Related Gaps (require E2E, unit, or hardware tests)</div>
+<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">These bugs share the "missing test" theme but are not addressable by contract or integration tests in CI. They require different test types.</p>
 <div class="card" style="overflow-x: auto;">
 <table>
 <thead>
-<tr><th>Ticket</th><th>Priority</th><th>Category</th><th>Summary</th><th>What Would Catch It</th></tr>
+<tr><th>Ticket</th><th>Priority</th><th>Summary</th><th>Actual Test Type Needed</th></tr>
 </thead>
 <tbody>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31519">CORE-31519</a></td><td><span class="badge badge-p0">P0</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>Wormhole: UI shows port enabled, switch has it disabled</td><td>Integration test: UI state matches device state after toggle</td></tr>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31321">CORE-31321</a></td><td><span class="badge badge-p0">P0</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>MACSec blocked state not reflected in app banner</td><td>Integration test: blocked-state propagates to client model</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31519">CORE-31519</a></td><td><span class="badge badge-p0">P0</span></td><td>Wormhole: UI shows port enabled, switch has it disabled</td><td>E2E / hardware-in-the-loop (state sync requires real device)</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31321">CORE-31321</a></td><td><span class="badge badge-p0">P0</span></td><td>MACSec blocked state not reflected in app banner</td><td>E2E test or server-side event propagation test</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31458">CORE-31458</a></td><td><span class="badge badge-p3">P3</span></td><td>Android shows "null" for idle devices, iOS shows "0 kbps"</td><td>Unit test on formatter function (not an API contract issue)</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31084">CORE-31084</a></td><td><span class="badge badge-p1">P1</span></td><td>Consumed data showing different values on accessory vs cellular screen</td><td>Unit test + snapshot test (display layer, not service boundary)</td></tr>
 </tbody>
 </table>
 </div>
 
-<!-- Section 4: Cross-Platform Parity -->
-<div class="section-title">Additional: Cross-Platform Parity Gaps</div>
-<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">iOS and Android interpret the same API responses differently. A shared schema or contract test would enforce consistency.</p>
-<div class="card" style="overflow-x: auto;">
-<table>
-<thead>
-<tr><th>Ticket</th><th>Priority</th><th>Summary</th><th>What Would Catch It</th></tr>
-</thead>
-<tbody>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31458">CORE-31458</a></td><td><span class="badge badge-p3">P3</span></td><td>Android shows "null" for idle devices, iOS shows "0 kbps"</td><td>Contract test: null usage renders as "0 kbps" or "Idle" consistently</td></tr>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31084">CORE-31084</a></td><td><span class="badge badge-p1">P1</span></td><td>Consumed data showing different values on accessory vs cellular screen</td><td>Integration test: formatter produces identical output across all display surfaces</td></tr>
-</tbody>
-</table>
+<!-- What contract tests would NOT catch -->
+<div class="callout" style="border-left-color: var(--muted); background: rgba(156,163,175,0.08);">
+  <strong style="color: var(--muted);">Scope acknowledgment:</strong> Contract and integration tests are not a silver bullet.
+  They would <strong>not</strong> catch: hardware state sync issues (CORE-31519), firmware bugs (CORE-29958),
+  UI formatting inconsistencies (CORE-31458), or client-internal display bugs (CORE-31084).
+  Those require E2E tests, unit tests, and snapshot tests respectively — a complementary investment.
 </div>
 </div>
 
@@ -267,8 +262,8 @@
   </div>
   <div class="card">
     <h3>Contract/Integration Bugs</h3>
-    <div class="stat stat-green">25+</div>
-    <div class="stat-sub">Identified across both windows</div>
+    <div class="stat stat-green">22</div>
+    <div class="stat-sub">Defensibly preventable across both windows</div>
   </div>
 </div>
 
@@ -302,9 +297,9 @@
   <div class="card">
     <h3>Recurring: Stale/Wrong State</h3>
     <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.85rem;">
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);">CORE-29958: registered:false until reboot</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);">CORE-31084: Different values on 2 screens</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);">CORE-30949: Client ignores entitlements API</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);">CORE-31230: Data packs double-counting</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);">CORE-30121: API returns wrong status code for role</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);">CORE-31094: Writes key without VLAN ID</li>
       <li style="padding: 6px 0;">CORE-30312: Null locale crashes profile</li>
     </ul>
   </div>
@@ -336,23 +331,21 @@
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30991">CORE-30991</a></td><td><span class="badge badge-p2">P2</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>Cable check rows missing TTL - stale data persists indefinitely in UI</td><td>Done</td><td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (monolith)</span></td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30636">CORE-30636</a></td><td><span class="badge badge-p2">P2</span></td><td><span class="badge badge-contract category-tag">Contract</span><span class="badge badge-preventable">Preventable</span></td><td>Cannot provision pending_sip_configuration via API - returns 500</td><td>Done</td><td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (monolith)</span></td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30415">CORE-30415</a></td><td><span class="badge badge-p1">P1</span></td><td><span class="badge badge-contract category-tag">Contract</span><span class="badge badge-preventable">Preventable</span></td><td>Speedtest overrides page crashes - null hw_model in API response</td><td>Done</td><td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (web)</span></td></tr>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-29958">CORE-29958</a></td><td><span class="badge badge-p1">P1</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>Foghorn returns registered:false after setup until power cycled</td><td>Done</td><td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (firmware)</span></td></tr>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31084">CORE-31084</a></td><td><span class="badge badge-p1">P1</span></td><td><span class="badge badge-parity category-tag">Parity</span><span class="badge badge-preventable">Preventable</span></td><td>Consumed data showing different values on accessory vs cellular screen</td><td>Done</td><td><span class="badge" style="background:rgba(34,197,94,0.2);color:var(--green)">Yes</span></td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30312">CORE-30312</a></td><td><span class="badge badge-p2">P2</span></td><td><span class="badge badge-contract category-tag">Contract</span><span class="badge badge-preventable">Preventable</span></td><td>NullPointerException from null ULocale in profile formatting</td><td>Done</td><td><span class="badge badge-p0">NO</span></td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31230">CORE-31230</a></td><td><span class="badge badge-p1">P1</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>Data consumption reflected in both data packs for dual-network users</td><td>Triage</td><td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Partial</span></td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30121">CORE-30121</a></td><td><span class="badge badge-p2">P2</span></td><td><span class="badge badge-contract category-tag">Contract</span><span class="badge badge-preventable">Preventable</span></td><td>GetEeroActivationState API returns 403 for business owner role</td><td>Backlog</td><td>-</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-31094">CORE-31094</a></td><td><span class="badge badge-p2">P2</span></td><td><span class="badge badge-contract category-tag">Contract</span><span class="badge badge-preventable">Preventable</span></td><td>MultiWanManager writes wan_eth without VLAN ID (format mismatch)</td><td>Triage</td><td>-</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30640">CORE-30640</a></td><td><span class="badge badge-p2">P2</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>2.4 GHz channel util view displays 5 GHz channel change events</td><td>Triage</td><td>-</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-29912">CORE-29912</a></td><td><span class="badge badge-p1">P1</span></td><td><span class="badge badge-integration category-tag">Integration</span><span class="badge badge-preventable">Preventable</span></td><td>Webhook sent incorrect IP from nearby network (cross-contamination)</td><td>Design Completed</td><td>-</td></tr>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-30949">CORE-30949</a></td><td><span class="badge badge-p1">P1</span></td><td><span class="badge badge-contract category-tag">Contract</span><span class="badge badge-preventable">Preventable</span></td><td>Android showed upsell because cloud /upsell_features API returned wrong data</td><td>Fixed (cloud-side)</td><td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (cloud)</span></td></tr>
 </tbody>
 </table>
 </div>
 
 <div class="callout" style="margin-top: 24px;">
-  <strong>The 60-day view confirms this is systemic:</strong> Every sprint produces 3-5 bugs from the same three root causes
-  (contract violations, data cross-contamination, state sync failures). These are not regressions from risky code changes -
-  they're <strong>gaps in the testing pyramid</strong> that allow known failure modes to ship repeatedly.
+  <strong>The 60-day view confirms this is systemic:</strong> Every sprint produces bugs from the same failure categories
+  (contract violations, data cross-contamination, state sync failures). These represent
+  <strong>gaps in the testing pyramid</strong> that allow known failure modes to ship repeatedly.
+  Contract tests would prevent the first category; integration tests address the second and third.
 </div>
 </div>
 
@@ -361,15 +354,15 @@
 
 <div class="callout" style="border-left-color: var(--red); background: rgba(239,68,68,0.08);">
   <strong style="color: var(--red);">Bottom line:</strong> We audited git history across Cloud, iOS, and Android for all bugs in this proposal.
-  <strong>Zero contract tests exist on any platform.</strong> Of 30 auditable bugs, fixes included tests only <strong>16% of the time</strong> — and every one was retroactive.
-  One fix (CORE-30312) shipped with no test at all and is at risk of regression today.
+  <strong>Zero contract tests exist on any platform.</strong> Of the 6 bugs with verifiable fixes in accessible repos, 5 included retroactive regression tests and 1 shipped bare.
+  None were <em>proactive</em> contract tests — all were written after the bug escaped to production.
 </div>
 
 <div class="grid grid-4">
   <div class="card">
-    <h3>Fixed WITH Tests</h3>
-    <div class="stat stat-green">5</div>
-    <div class="stat-sub">All retroactive regressions</div>
+    <h3>Verified Fixes with Tests</h3>
+    <div class="stat stat-green">5 / 6</div>
+    <div class="stat-sub">83% of auditable fixes (all retroactive)</div>
   </div>
   <div class="card">
     <h3>Fixed WITHOUT Tests</h3>
@@ -378,13 +371,13 @@
   </div>
   <div class="card">
     <h3>Still Unfixed</h3>
-    <div class="stat stat-red">9</div>
+    <div class="stat stat-orange">9</div>
     <div class="stat-sub">No PR/commit found in repos</div>
   </div>
   <div class="card">
-    <h3>Not Auditable (monolith)</h3>
+    <h3>Not Auditable</h3>
     <div class="stat stat-yellow">15</div>
-    <div class="stat-sub">Private Scala monolith</div>
+    <div class="stat-sub">Private monolith (cannot confirm or deny tests)</div>
   </div>
 </div>
 
@@ -477,13 +470,7 @@
   <td>CORE-31084</td><td>iOS</td>
   <td><span class="badge" style="background:rgba(34,197,94,0.2);color:var(--green)">Merged</span></td>
   <td><span class="badge" style="background:rgba(34,197,94,0.2);color:var(--green)">YES</span></td>
-  <td>DataUsageUtilityTests + snapshots verify matching precision across screens</td>
-</tr>
-<tr>
-  <td>CORE-30949</td><td>Cloud (fixed API)</td>
-  <td><span class="badge" style="background:rgba(34,197,94,0.2);color:var(--green)">Merged</span></td>
-  <td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (cloud)</span></td>
-  <td>Cloud /upsell_features API fix resolved Android symptom. Client tests added via CORE-31030.</td>
+  <td>Unit + snapshot tests (display formatting, not contract/integration)</td>
 </tr>
 <tr style="background: rgba(236,72,153,0.03);">
   <td>CORE-30312</td><td>Android</td>
@@ -496,12 +483,6 @@
   <td><span class="badge badge-p0">Unfixed</span></td>
   <td><span class="badge badge-p0">NO</span></td>
   <td>Still no null check on baseMac. Sibling activities DO validate.</td>
-</tr>
-<tr style="background: rgba(239,68,68,0.03);">
-  <td>CORE-31458</td><td>iOS + Android</td>
-  <td><span class="badge badge-p0">Unfixed</span></td>
-  <td><span class="badge badge-p0">NO</span></td>
-  <td>Null vs "0 kbps" still rendering incorrectly on both platforms.</td>
 </tr>
 <tr style="background: rgba(239,68,68,0.03);">
   <td>CORE-31321</td><td>iOS</td>
@@ -526,12 +507,6 @@
   <td><span class="badge badge-p0">Unfixed</span></td>
   <td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Partial</span></td>
   <td>UsageAssignmentServiceTest exists but specific double-count scenario untested.</td>
-</tr>
-<tr style="background: rgba(239,68,68,0.03);">
-  <td>CORE-29912</td><td>Cloud</td>
-  <td><span class="badge" style="background:rgba(34,197,94,0.2);color:var(--green)">Merged</span></td>
-  <td><span class="badge" style="background:rgba(234,179,8,0.2);color:var(--yellow)">Unknown (firmware)</span></td>
-  <td>Webhook IP cross-contamination. Fix merged in node firmware.</td>
 </tr>
 <tr>
   <td>CORE-31617</td><td>Cloud (Monolith)</td>
@@ -599,8 +574,8 @@ function initCharts() {
   new Chart(document.getElementById('categoryChart'), {
     type: 'doughnut',
     data: {
-      labels: ['Contract Violation', 'Integration Gap', 'Platform Parity'],
-      datasets: [{ data: [10, 5, 2], backgroundColor: [C.purple, C.green, C.pink], borderWidth: 0, spacing: 3 }]
+      labels: ['Contract Violation', 'Integration Gap'],
+      datasets: [{ data: [10, 2], backgroundColor: [C.purple, C.green], borderWidth: 0, spacing: 3 }]
     },
     options: { responsive: true, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { padding: 16 } } } }
   });
