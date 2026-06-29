@@ -120,6 +120,7 @@
   <button class="tab-btn active" onclick="switchTab('recent')">Last 30 Days</button>
   <button class="tab-btn" onclick="switchTab('sixty')">60-Day View</button>
   <button class="tab-btn" onclick="switchTab('verification')">Code Verification</button>
+  <button class="tab-btn" onclick="switchTab('poc')">Proof of Concept</button>
 </div>
 
 <!-- ==================== TAB 1: RECENT (9 DAYS) ==================== -->
@@ -535,6 +536,154 @@
 </tbody>
 </table>
 </div>
+</div>
+
+<!-- ==================== TAB 4: PROOF OF CONCEPT ==================== -->
+<div id="tab-poc" class="tab-panel">
+
+<div class="callout">
+  <strong>This section answers: "What do we do first, and how do we measure success?"</strong>
+  The goal is a minimal proof of concept that demonstrates contract tests catching a real, chronic production bug — then expand coverage based on results.
+</div>
+
+<div class="grid grid-4">
+  <div class="card">
+    <h3>Week 1 Target</h3>
+    <div class="stat stat-green" style="font-size: 1.8rem;">1 test</div>
+    <div class="stat-sub">CORE-31269 (247K Sentry events)</div>
+  </div>
+  <div class="card">
+    <h3>Tooling</h3>
+    <div class="stat" style="font-size: 1.8rem; color: var(--accent);">Pact</div>
+    <div class="stat-sub">Consumer-driven contracts</div>
+  </div>
+  <div class="card">
+    <h3>CI Integration</h3>
+    <div class="stat" style="font-size: 1.8rem; color: var(--text);">PR check</div>
+    <div class="stat-sub">Failure blocks merge</div>
+  </div>
+  <div class="card">
+    <h3>Success Metric</h3>
+    <div class="stat" style="font-size: 1.8rem; color: var(--green);">0</div>
+    <div class="stat-sub">New Sentry events for covered interfaces after 30 days</div>
+  </div>
+</div>
+
+<!-- First Target -->
+<div class="section-title">First Target: CORE-31269</div>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Why This Bug</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><strong>247,773 Sentry events</strong> — highest volume of any bug in this report</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><strong>Active since Oct 2024</strong> — 20 months unfixed demonstrates no existing prevention</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><strong>Simple contract:</strong> "hw_model must not be None at provisioning boundary"</li>
+      <li style="padding: 8px 0;"><strong>Clear success criteria:</strong> Sentry event count stops growing</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>The Contract Test</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><strong>Consumer:</strong> iOS client defines expectation — GET /eeros/{id} returns non-null hw_model</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><strong>Provider:</strong> Cloud API verifies it satisfies the consumer expectation</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><strong>Trigger:</strong> Any PR that modifies the provisioning/auto-provision path</li>
+      <li style="padding: 8px 0;"><strong>Failure mode:</strong> If provider returns null hw_model, PR cannot merge</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="section-title">Timeline</div>
+<div class="card" style="overflow-x: auto;">
+<table>
+<thead>
+<tr><th>Week</th><th>Deliverable</th><th>Owner</th><th>Done When</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>1</strong></td><td>Write Pact consumer contract for CORE-31269 on iOS</td><td>QAE (Maria)</td><td>Consumer test passes locally, expectation defined in Pact broker</td></tr>
+<tr><td><strong>2</strong></td><td>Add provider verification on cloud staging</td><td>QAE + Cloud dev</td><td>Provider test runs against staging, catches simulated null hw_model</td></tr>
+<tr><td><strong>3</strong></td><td>Integrate into PR checks (iOS CI + cloud CI)</td><td>QAE + DevOps</td><td>Consumer test runs on iOS PRs; provider verification runs on cloud PRs</td></tr>
+<tr><td><strong>4</strong></td><td>Expand to CORE-31436 + CORE-31564 (same pattern)</td><td>QAE</td><td>3 contracts total; all passing in CI</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Tooling Decision -->
+<div class="section-title">Tooling</div>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Phase 1: Consumer-Driven Contracts (Pact)</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Why Pact:</strong> Decouples consumer from provider — each team tests independently</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>iOS:</strong> Pact-Swift (mature, well-maintained, integrates with XCTest)</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Android:</strong> Pact-JVM (Kotlin-compatible, runs in existing JUnit suites)</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Cloud:</strong> Pact provider verification (Scala or via HTTP, framework-agnostic)</li>
+      <li style="padding: 6px 0;"><strong>No new infra for Phase 1:</strong> Pact broker can be a static JSON file in the repo initially, upgrade to hosted later</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Phase 2: Integration Tests</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Target:</strong> State transition flows (DARS status), cross-table consistency (SSID configs)</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Environment:</strong> Run against staging (real services, test data)</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>CI placement:</strong> Post-merge on staging deploy — alerts but does not block initially</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Graduation:</strong> Once stable for 2 weeks, promote to merge-blocking</li>
+      <li style="padding: 6px 0;"><strong>Framework:</strong> Lightweight pytest suite with API client (no UI dependency)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Ownership -->
+<div class="section-title">Ownership & Maintenance</div>
+<div class="grid grid-3">
+  <div class="card">
+    <h3>Who Writes What</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Consumer contracts (iOS/Android):</strong> QAE writes initial, platform dev maintains</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Provider verification (Cloud):</strong> Cloud dev owns, QAE provides expectations</li>
+      <li style="padding: 6px 0;"><strong>Integration tests:</strong> QAE writes initial suite, service team maintains alongside service</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Maintenance Cost</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Contract tests:</strong> Very low — test shape, not values. Break only on real schema changes.</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Integration tests:</strong> ~0.5 days/quarter/suite for test data and env issues</li>
+      <li style="padding: 6px 0;"><strong>Total ongoing:</strong> ~1-2 days/quarter once established (amortized across all suites)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>What Blocks Merge</h3>
+    <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Day 1:</strong> Contract test failures block the specific consumer or provider PR</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Week 4:</strong> Integration test failures alert Slack channel, do not block</li>
+      <li style="padding: 6px 0;"><strong>Week 8+:</strong> Stable integration tests promoted to merge-blocking</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Success Metrics -->
+<div class="section-title">How We Measure Success</div>
+<div class="card" style="overflow-x: auto;">
+<table>
+<thead>
+<tr><th>Metric</th><th>Baseline (today)</th><th>30-day target</th><th>90-day target</th></tr>
+</thead>
+<tbody>
+<tr><td>Sentry events for covered interfaces</td><td>375K+ cumulative</td><td>Growth rate → 0 for first 3 interfaces</td><td>Growth rate → 0 for all Phase 1 interfaces</td></tr>
+<tr><td>Contract-preventable P0/P1 bugs filed</td><td>~4-5/week</td><td>No new bugs of covered types</td><td>50% reduction in this category overall</td></tr>
+<tr><td>Time-to-detect contract violations</td><td>Days to months (Sentry alert or QA find)</td><td>Minutes (CI failure on PR)</td><td>Minutes (CI failure on PR)</td></tr>
+<tr><td>Contract test count</td><td>0 across all platforms</td><td>3 (CORE-31269, 31436, 31564)</td><td>10+ covering all Phase 1 categories</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout" style="margin-top: 24px;">
+  <strong>Ask:</strong> 1 QAE sprint (2 weeks) to deliver the first working contract test in CI for CORE-31269.
+  No new infrastructure, no new tooling budget. Uses existing CI pipelines and staging environment.
+  If Sentry events for that interface stop growing within 30 days, we expand to the remaining 11 interfaces.
+</div>
+
 </div>
 
 <p style="margin-top: 32px; color: var(--muted); font-size: 0.8rem; text-align: center;">
