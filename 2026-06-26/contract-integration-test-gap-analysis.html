@@ -400,8 +400,8 @@
     <h3>No Contract Tests on Any Platform</h3>
     <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
       <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> Cloud - No Pact, no schema validation. Scala monolith has no visible test infra</li>
-      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> iOS - No contract tests. Models use lenient decoding (try?, decodeIfPresent) silently swallowing errors</li>
-      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> Android - No Pact. Only 1 property-based Gson round-trip test for NotificationResponse</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> iOS - No contract tests. Has 29 JSON fixtures + decoding tests, but these only verify "doesn't crash" — not that required fields are non-null or enum values are complete</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> Android - No contract tests. Has ~300 JSON fixtures, property-based round-trip tests, and deserializer tests — but none validate against the live API or enforce field-level contracts</li>
       <li style="padding: 8px 0;"><span style="color:var(--red);">&#x2717;</span> Cross-platform - No shared schema. iOS and Android interpret API responses independently</li>
     </ul>
   </div>
@@ -554,8 +554,8 @@
   </div>
   <div class="card">
     <h3>Tooling</h3>
-    <div class="stat" style="font-size: 1.8rem; color: var(--accent);">Pact</div>
-    <div class="stat-sub">Consumer-driven contracts</div>
+    <div class="stat" style="font-size: 1.8rem; color: var(--accent);">Existing</div>
+    <div class="stat-sub">Extend current test infra (no new deps)</div>
   </div>
   <div class="card">
     <h3>CI Integration</h3>
@@ -600,25 +600,30 @@
 <tr><th>Week</th><th>Deliverable</th><th>Owner</th><th>Done When</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>1</strong></td><td>Write Pact consumer contract for CORE-31269 on iOS</td><td>QAE (Maria)</td><td>Consumer test passes locally, expectation defined in Pact broker</td></tr>
-<tr><td><strong>2</strong></td><td>Add provider verification on cloud staging</td><td>QAE + Cloud dev</td><td>Provider test runs against staging, catches simulated null hw_model</td></tr>
-<tr><td><strong>3</strong></td><td>Integrate into PR checks (iOS CI + cloud CI)</td><td>QAE + DevOps</td><td>Consumer test runs on iOS PRs; provider verification runs on cloud PRs</td></tr>
-<tr><td><strong>4</strong></td><td>Expand to CORE-31436 + CORE-31564 (same pattern)</td><td>QAE</td><td>3 contracts total; all passing in CI</td></tr>
+<tr><td><strong>1</strong></td><td>Add non-null + type assertions to existing iOS <code>UserAPIDecodingTests</code> for hw_model, baseMac, subnetTypeId fields</td><td>QAE (Maria)</td><td>Existing fixtures fail if field is null; test passes in <code>mise run test unitTests</code></td></tr>
+<tr><td><strong>2</strong></td><td>Add equivalent Kotest schema assertions on Android using existing fixtures</td><td>QAE (Maria)</td><td>Android unit tests enforce same field requirements</td></tr>
+<tr><td><strong>3</strong></td><td>Add scheduled CI job to refresh fixtures from staging and alert on drift</td><td>QAE + DevOps</td><td>Weekly job detects if live API response no longer matches expected schema</td></tr>
+<tr><td><strong>4</strong></td><td>Expand to remaining 9 interfaces (CORE-31436, 31564, 31449, etc.)</td><td>QAE</td><td>12 field-level contract assertions total; all passing in CI</td></tr>
 </tbody>
 </table>
 </div>
 
 <!-- Tooling Decision -->
-<div class="section-title">Tooling</div>
+<div class="section-title">Tooling: Extend What Already Exists</div>
+<div class="callout" style="border-left-color: var(--green); background: rgba(34,197,94,0.08);">
+  <strong style="color: var(--green);">Key insight:</strong> We are not starting from zero. iOS already has 29 JSON fixtures + decoding tests.
+  Android has ~300 JSON fixtures + property-based round-trip tests. The gap is not "no test infrastructure" — it's
+  <strong>"existing tests verify decoding doesn't crash, but never assert the specific failure modes causing production bugs."</strong>
+</div>
 <div class="grid grid-2">
   <div class="card">
-    <h3>Phase 1: Consumer-Driven Contracts (Pact)</h3>
+    <h3>Phase 1: Client-Side Schema Validation (no backend dependency)</h3>
     <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Why Pact:</strong> Decouples consumer from provider — each team tests independently</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>iOS:</strong> Pact-Swift (mature, well-maintained, integrates with XCTest)</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Android:</strong> Pact-JVM (Kotlin-compatible, runs in existing JUnit suites)</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Cloud:</strong> Pact provider verification (Scala or via HTTP, framework-agnostic)</li>
-      <li style="padding: 6px 0;"><strong>No new infra for Phase 1:</strong> Pact broker can be a static JSON file in the repo initially, upgrade to hosted later</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>iOS:</strong> Extend existing <code>UserAPIDecodingTests</code> — add <code>XCTAssertNotNil</code> for required fields (hw_model, baseMac) on the 29 existing fixtures</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Android:</strong> Add Kotest schema assertions using existing <code>io.kotest:kotest-property</code> dependency — validate fixtures against defined field requirements</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>No new dependencies:</strong> Both platforms already have the test frameworks; we add assertions, not libraries</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><strong>Drift detection:</strong> Add a scheduled CI job that refreshes fixtures from staging and alerts if schema breaks</li>
+      <li style="padding: 6px 0;"><strong>Graduation to Pact:</strong> If cloud team buys in later, schemas become consumer contract definitions</li>
     </ul>
   </div>
   <div class="card">
@@ -679,9 +684,9 @@
 </div>
 
 <div class="callout" style="margin-top: 24px;">
-  <strong>Ask:</strong> 1 QAE sprint (2 weeks) to deliver the first working contract test in CI for CORE-31269.
-  No new infrastructure, no new tooling budget. Uses existing CI pipelines and staging environment.
-  If Sentry events for that interface stop growing within 30 days, we expand to the remaining 11 interfaces.
+  <strong>Ask:</strong> 1 QAE sprint (2 weeks) to extend existing decoding tests with field-level contract assertions for the top 3 bug-causing interfaces.
+  No new dependencies, no new infrastructure. Builds on the 29 iOS fixtures and 300 Android fixtures already in the repos.
+  If Sentry events for covered interfaces stop growing within 30 days, we expand to the remaining 9 interfaces.
 </div>
 
 </div>
