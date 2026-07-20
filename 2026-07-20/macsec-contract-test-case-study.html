@@ -173,6 +173,112 @@
   </div>
 </div>
 
+<!-- How Tests Run -->
+<h2>How Tests Run</h2>
+
+<h3>Android — opt-in <code>test:contract</code> CI job</h3>
+
+<p>Contract and integration tests are excluded from the default per-PR unit-test job, and re-enabled only when a PR is labelled <code>run-contract-tests</code>. Even then, they run only for the packages whose owned files actually changed in the diff. Zero-diff PRs and unrelated PRs that carry the label produce a no-op job that exits early.</p>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Default per-PR run</h3>
+    <pre style="font-size: 0.78rem; margin-top: 8px;">./gradlew testEeroDogfoodDebugUnitTest \
+  -PtestShard=$CI_NODE_INDEX \
+  -PtestTotalShards=$CI_NODE_TOTAL \
+  -PexcludeContractTests=true</pre>
+    <p style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
+      <code>-PexcludeContractTests=true</code> filters out any test file under
+      <code>/com/eero/android/contract/</code> or <code>/com/eero/android/integration/</code>
+      from the shard filter in <code>build.gradle</code>. Local unsharded runs are unaffected.
+    </p>
+  </div>
+  <div class="card">
+    <h3>Opt-in <code>test:contract</code> job</h3>
+    <pre style="font-size: 0.78rem; margin-top: 8px;">rules:
+  - if: '$CI_MERGE_REQUEST_LABELS =~ /(^|,)run-contract-tests(,|$)/'
+script:
+  - selected=$(./scripts/select-contract-tests.sh)
+  - if [ -z "$selected" ]; then
+      echo "No contract tests for this diff"
+      exit 0
+    fi
+  - eval "./gradlew :app:testEeroDogfoodDebugUnitTest $selected"</pre>
+    <p style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
+      Job source: <code>.test-include.yml</code> (commit <code>1a5d323</code>). 30-minute timeout, publishes JUnit reports as artifacts on failure.
+    </p>
+  </div>
+</div>
+
+<h3>Diff-scoped selection</h3>
+
+<p><code>scripts/select-contract-tests.sh</code> reads the PR diff against <code>$CI_MERGE_REQUEST_DIFF_BASE_SHA</code> (or <code>origin/development</code> locally), matches each changed file against an inline mapping table, and emits deduplicated Gradle <code>--tests</code> flags. Emits nothing when no mapped path changed, so the job exits <code>0</code> without touching Gradle.</p>
+
+<div class="card" style="overflow-x: auto;">
+<table>
+<thead>
+<tr><th>Changed file pattern</th><th>Triggers</th></tr>
+</thead>
+<tbody>
+<tr><td><code>app/src/test/kotlin/com/eero/android/contract/portsecurity/</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>app/src/test/resources/fixtures/port_security/</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>data/network/.../PortSecurity(Status)?.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>data/network/.../EthernetPortSecurity.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>core/.../PortInterface.kt</code>, <code>PortAction.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>core/.../GsonFactory.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>app/.../BuildMacsecAlertStateUseCase.kt</code>, <code>MacsecAlertState.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
+<tr><td><code>feature/.../PortDetailViewModel.kt</code>, <code>ConnectionsPollingUseCase.kt</code></td><td><code>PortDetailViewModelTest</code> (INT-001..003)</td></tr>
+<tr><td><code>app/src/test/.../PortDetailViewModelTest.kt</code></td><td><code>PortDetailViewModelTest</code> (INT-001..003)</td></tr>
+</tbody>
+</table>
+</div>
+
+<p style="font-size: 0.85rem; color: var(--muted); margin-top: 12px;">
+  Verified locally with JDK 17: unsharded default run drops from 618 → 616 shard tests with the flag (matching the two contract/integration test files);
+  <code>test:contract</code> emits <code>--tests "com.eero.android.contract.portsecurity.*" --tests "com.eero.android.integration.portsecurity.*"</code> for the PoC branch,
+  12/12 contract tests pass, 3/3 integration tests execute as designed, <code>BUILD SUCCESSFUL</code>. Kuiper-only diff simulated: script emits nothing, CI job exits early.
+</p>
+
+<h3>Android — fixture flow</h3>
+
+<p>All CT-* scenarios share a single consolidated fixture:</p>
+
+<pre>
+app/src/test/resources/fixtures/port_security/scenarios.json
+  └── "scenario_01_not_capable":            { ... GET /networks/{id}/connections snippet ... }
+      "scenario_02_capable_off_connected":  { ... }
+      "scenario_03_capable_off_disconnected": { ... }
+      "scenario_06_active": { ... }
+      "scenario_07_blocked_non_eero": { ... }
+      "scenario_08_non_capable_eero": { ... }   ← intentionally identical to scenario 7
+      "scenario_09_peer_propagated": { ... }
+      "scenario_10_cloud_throttle": { ... }
+      "scenario_11_enable_success", "scenario_12_disable_success",
+      "scenario_13_enable_error", "scenario_14_network_poll_blocked": { ... }
+</pre>
+
+<p><code>PortSecurityFixtures.payloadOf(scenarioId)</code> loads the entry, strips the <code>description</code> metadata, and returns the raw <code>JsonObject</code>. Tests then parse it through <code>GsonFactory.create()</code> — the same <code>Gson</code> instance production uses (with <code>RuntimeTypeAdapterFactory</code> wired for the sealed <code>PortConnectionStatus</code> class). Using a plain <code>Gson()</code> would throw <code>JsonIOException</code> on the sealed base type in modern Gson versions, so contract tests are validating the real decode path, not a simplified one.</p>
+
+<h3>iOS — Swift Testing bundle</h3>
+
+<p>iOS tests live in <code>Eero/EeroNetworking/Tests/Port Security Tests/PortSecurityContractTests.swift</code> and run inside the existing <code>EeroNetworkingTests</code> target. Fixtures are loaded from a single <code>PortSecurity.json</code> next to the test file and decoded via <code>EeroAPI.jsonDecoder</code> — the same <code>JSONDecoder</code> production uses. Invocation:</p>
+
+<pre>mise run test unitTests  # or the EeroNetworkingTests scheme in Xcode</pre>
+
+<p>No CI-config change needed — the tests run as part of the existing PR test job on <code>ios-client</code>. Once the branch is rebased and PR'd, the tests execute on every PR that touches <code>Eero/EeroNetworking/</code>.</p>
+
+<h3>What a failure looks like</h3>
+
+<p>When a contract violation lands (fixture regenerated from staging, or a model field drift), the failing scenario surfaces in the CI report exactly as any other unit-test failure — but with a scenario ID and the tech-spec matrix row in the assertion label:</p>
+
+<pre style="font-size: 0.78rem;">FAILED com.eero.android.contract.portsecurity.PortSecurityContractTest
+  &gt; CT-007 security on, non-eero detected parses as BLOCKED with data disabled
+
+    expected: BLOCKED but was: ACTIVE
+    at PortSecurityContractTest.kt:70</pre>
+
+<p>The failure names the CT-id from the tech-spec scenario matrix, the semantic assertion that broke, and the line — so a reviewer can jump straight from the failing PR into the exact scenario being violated. On iOS the same convention applies via Swift Testing's <code>@Test("CT-007: …")</code> label.</p>
+
 <!-- How It Works -->
 <h2>How It Works</h2>
 
@@ -268,6 +374,75 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
     <p style="font-size: 0.85rem; margin-top: 8px;">If a dev accidentally changes the model in a way that breaks parsing of the documented scenarios, the CI test fails before merge.</p>
     <p style="font-size: 0.85rem; color: var(--green); margin-top: 8px;">Guards every documented scenario in the tech spec matrix</p>
   </div>
+</div>
+
+<!-- Per-test-class Relevance -->
+<h2>What Each Test Class Prevents</h2>
+
+<p>Every group of tests is anchored to a specific class of production failure. The table below maps each scenario group to the bug pattern it catches and the concrete CORE tickets that illustrate that pattern (or would have been caught if the test had existed).</p>
+
+<div class="card" style="overflow-x: auto;">
+<table>
+<thead>
+<tr><th>Test group</th><th>What it asserts</th><th>Failure class it catches</th><th>Related CORE bugs</th></tr>
+</thead>
+<tbody>
+<tr>
+  <td><strong>CT-001..003</strong><br><span style="color:var(--muted); font-size:0.8rem;">Not-capable / off states</span></td>
+  <td>Missing <code>port_security</code> and off states decode to correct model — <code>capable=false, status=DISABLED</code> vs <code>capable=true, enabled=false, status=DISABLED</code></td>
+  <td>Optional-field decoding drift — model treats "absent" and "off" as the same, or throws when a required field is legitimately absent</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-31568">CORE-31568</a> (None.get on missing organizationId), <a href="https://eeroinc.atlassian.net/browse/CORE-31867">CORE-31867</a> (unsafe Option.get on BaseEvent)</td>
+</tr>
+<tr>
+  <td><strong>CT-006..010</strong><br><span style="color:var(--muted); font-size:0.8rem;">Active / blocked / cloud-throttle</span></td>
+  <td>Every tech-spec state decodes to the correct <code>PortSecurityStatus</code> enum value; <code>disabled_protocols</code> contains <code>DATA</code> when BLOCKED; scenario 8 (non-capable eero) decodes identically to scenario 7 (which is documented behavior)</td>
+  <td>Enum drift and status-to-side-effect mismatches — cloud adds a status the app doesn't know, or forgets to disable protocols that spec says should be off</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-31436">CORE-31436</a> (SubnetTypeId.fromSubnetType throws on GENERIC), <a href="https://eeroinc.atlassian.net/browse/CORE-31743">CORE-31743</a> (toggle mismatch — status vs disabled-protocols disagree on first render)</td>
+</tr>
+<tr>
+  <td><strong>CT-M1..M4</strong> (iOS)<br><span style="color:var(--muted); font-size:0.8rem;">Malformed / forward-compat</span></td>
+  <td>Invalid JSON syntax throws; wrong type throws; missing required field throws; <strong>unknown status value preserves raw string without throwing</strong></td>
+  <td>Forward-compatibility regression — someone tightens the enum to a failable init, and every unknown status crashes the app the day cloud ships a new state</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-31269">CORE-31269</a> (unexpected hw model None, 247K events), <a href="https://eeroinc.atlassian.net/browse/CORE-31564">CORE-31564</a> (null baseMac ValidationException)</td>
+</tr>
+<tr>
+  <td><strong>CT-011..013</strong><br><span style="color:var(--muted); font-size:0.8rem;">Toggle POST responses</span></td>
+  <td>Enable/disable action returns the bare 200 meta envelope Mobile Tech Spec documents; error envelope surfaces the error code verbatim for user-facing messaging</td>
+  <td>Consumer mishandling of action-endpoint response envelopes — the client renders "Unknown error" because the error code isn't parsed, or fails to refresh state after a successful toggle</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-31676">CORE-31676</a> (Speedtest 409 mishandled — same class), <a href="https://eeroinc.atlassian.net/browse/CORE-31449">CORE-31449</a> (client error returns 500 instead of 400)</td>
+</tr>
+<tr>
+  <td><strong>CT-014</strong><br><span style="color:var(--muted); font-size:0.8rem;">Network poll — home alert</span></td>
+  <td>The <code>eeros.data[i].ethernet_status.statuses[j].port_security</code> field on the network-poll response decodes with <code>status</code>, <code>navigation_target</code>, <code>eero_url</code>, and <code>blocked_device{mac, hostname}</code>; alert message can be built client-side</td>
+  <td>Home-screen alert data structure drift — cloud renames or restructures the fields the app reads to build the security banner</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-32133">CORE-32133</a> (metadata.organizations returns id only, no name), <a href="https://eeroinc.atlassian.net/browse/CORE-32156">CORE-32156</a> (iOS Scans/Ads detail missing Profiles + percentage)</td>
+</tr>
+<tr>
+  <td><strong>INT-001</strong><br><span style="color:var(--muted); font-size:0.8rem;">Peer auto-propagation</span></td>
+  <td>When cloud returns ACTIVE without a prior user action, <code>PortDetailViewModel</code> emits the ACTIVE state without opening the confirmation dialog</td>
+  <td>ViewModel over-triggers UI flows on state it didn't originate — false positive dialogs, redundant confirmation prompts</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-31743">CORE-31743</a> (toggle first-render mismatch), <a href="https://eeroinc.atlassian.net/browse/CORE-32155">CORE-32155</a> (Thread toggle hidden despite otbr-agent active)</td>
+</tr>
+<tr>
+  <td><strong>INT-002</strong><br><span style="color:var(--muted); font-size:0.8rem;">DISABLED → ACTIVE via poll</span></td>
+  <td>Multi-request state transitions surface in the ViewModel — the emitted state updates from DISABLED to ACTIVE via the 5s poll, no user action required</td>
+  <td>UI shows stale state after backend transitions — a la CORE-32049 where <code>ring_settings.lte_state</code> stays "on" after the device already stopped LTE</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-32049">CORE-32049</a> (ring_settings.lte_state stale), <a href="https://eeroinc.atlassian.net/browse/CORE-31871">CORE-31871</a> (backup AP reorder POST 200 but DB unchanged), <a href="https://eeroinc.atlassian.net/browse/CORE-32132">CORE-32132</a> (throttle ACKed but not enforced)</td>
+</tr>
+<tr>
+  <td><strong>INT-003</strong><br><span style="color:var(--muted); font-size:0.8rem;">DISABLED → BLOCKED surfaces error alert</span></td>
+  <td>When the poll transitions the port into BLOCKED, the ViewModel emits the correct <code>MacsecAlertState</code> and the home-alert use case renders the banner</td>
+  <td>Security-critical state changes fail to reach the user — the app knows something is BLOCKED but the banner never shows</td>
+  <td><a href="https://eeroinc.atlassian.net/browse/CORE-31321">CORE-31321</a> (MACSec blocked state not reflected in app banner — June baseline), <a href="https://eeroinc.atlassian.net/browse/CORE-32150">CORE-32150</a> (node_update_outcomes missing .wrx firmware records — same class: transitions never surface downstream)</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="callout" style="margin-top: 20px;">
+  <strong>Why the mapping matters:</strong> Each of the CORE tickets on the right side of this table represents a real bug that shipped.
+  The tests on the left side aren't "extra insurance for a hypothetical failure" — they're the specific assertions that would have caught
+  the specific line of code that shipped broken. That's why the PoC targets the highest-volume Sentry offenders and the July P0s: same class of failure, tests catch it.
 </div>
 
 <!-- CI Integration -->
