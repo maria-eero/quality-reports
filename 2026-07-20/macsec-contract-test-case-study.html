@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MACsec Port Security — Contract Test Case Study</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #9ca3af;
+    --accent: #6366f1;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px 24px;
+    line-height: 1.6;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 0.95rem; }
+  h2 { font-size: 1.3rem; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.05rem; margin: 24px 0 8px; }
+  p { margin: 10px 0; }
+  .grid { display: grid; gap: 20px; margin-bottom: 24px; }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card h3 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+  .stat { font-size: 2.2rem; font-weight: 700; }
+  .stat-sub { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+  .stat-green { color: var(--green); }
+  .stat-accent { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: rgba(99,102,241,0.05); }
+  code {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.85em;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  }
+  pre {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 16px 0;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  }
+  .callout {
+    background: rgba(99,102,241,0.1);
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+    font-size: 0.9rem;
+  }
+  .callout strong { color: var(--accent); }
+  .callout-green {
+    background: rgba(34,197,94,0.08);
+    border-left-color: var(--green);
+  }
+  .callout-green strong { color: var(--green); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-green { background: rgba(34,197,94,0.2); color: var(--green); }
+  .badge-yellow { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .badge-muted { background: rgba(156,163,175,0.15); color: var(--muted); }
+  .back-link { display: inline-block; margin-bottom: 24px; color: var(--muted); font-size: 0.85rem; }
+  .back-link:hover { color: var(--accent); }
+  ul { margin: 10px 0; padding-left: 20px; }
+  li { margin: 6px 0; }
+  .comparison-row { display: flex; gap: 12px; align-items: center; }
+  .vs { color: var(--muted); font-weight: 600; font-size: 0.9rem; padding: 0 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<a class="back-link" href="contract-integration-test-gap-analysis.html">&larr; Back to Gap Analysis</a>
+
+<h1>MACsec Port Security — Contract Test Case Study</h1>
+<p class="subtitle">A working implementation of contract + integration tests, already built for iOS and Android. No Pact, no new infrastructure. Refreshed 2026-07-20.</p>
+
+<!-- KPIs -->
+<div class="grid grid-4">
+  <div class="card">
+    <h3>Contract Tests</h3>
+    <div class="stat stat-green">12 · 18</div>
+    <div class="stat-sub">Android (12 @Test, CT-004/005 omitted) · iOS (18 @Test — 14 CT + 4 CT-M)</div>
+  </div>
+  <div class="card">
+    <h3>Integration Tests</h3>
+    <div class="stat stat-accent">3 · 0</div>
+    <div class="stat-sub">Android: real INT-001..003 in <code>PortDetailViewModelTest</code> · iOS: still TODO stubs</div>
+  </div>
+  <div class="card">
+    <h3>New Dependencies</h3>
+    <div class="stat" style="color: var(--text);">0</div>
+    <div class="stat-sub">Uses existing XCTest / JUnit</div>
+  </div>
+  <div class="card">
+    <h3>CI Changes</h3>
+    <div class="stat" style="color: var(--text);">1</div>
+    <div class="stat-sub">Android: opt-in <code>test:contract</code> job wired (commit <code>1a5d323</code>) · iOS: none needed</div>
+  </div>
+</div>
+
+<div class="callout-green callout">
+  <strong>This already exists — Android is production-ready; iOS needs a rebase.</strong>
+  The pattern described in the gap analysis proposal has been implemented for Port Security on both platforms.
+  Android is in Draft PR #13181 (eero-inc/android, last commit 2026-07-10) with a real opt-in CI job.
+  iOS branch <code>maria/QA-17147-port-security-tests</code> holds 18 <code>@Test</code> scenarios but is 23K commits behind main
+  and has never been PR'd. This document presents the pattern as the template for expanding coverage
+  to the target interfaces in the July 2026 gap analysis.
+</div>
+
+<!-- What We Built -->
+<h2>What We Built</h2>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>iOS (Swift Testing)</h3>
+    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> — <span style="color: var(--yellow);">no PR yet, 23K commits behind main</span></p>
+    <ul style="font-size: 0.85rem; margin-top: 12px;">
+      <li><strong>10 scenario tests</strong> (CT-001 → CT-010) — every state from the tech spec's scenario matrix</li>
+      <li><strong>4 malformed-payload tests</strong> (CT-M1 → CT-M4) — invalid JSON, wrong types, missing fields, unknown enums</li>
+      <li><strong>4 toggle/poll tests</strong> (CT-011..014) — currently <code>.disabled</code>, pending SUT wiring (POST /ports/{n}/actions request builder + response wrapper, port_security field on <code>Eero.EthernetStatus.InterfaceStatus</code>)</li>
+      <li><strong>3 integration tests</strong> (INT-001 → INT-003) — still TODO stubs in <code>Eero/integrationTests/Features/Port Security/PortSecurityIntegrationTests.swift</code></li>
+      <li>Uses: <code>EeroAPI.jsonDecoder</code>, Swift Testing <code>@Test</code>, existing test bundle</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Android (JUnit + Gson)</h3>
+    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17148-port-security-tests</code> — <span style="color: var(--green);">Draft PR #13181, last commit 2026-07-10</span></p>
+    <ul style="font-size: 0.85rem; margin-top: 12px;">
+      <li><strong>12 <code>@Test</code> methods</strong> in <code>PortSecurityContractTest.kt</code> — CT-001..003 + CT-006..014 (CT-004/005 intentionally omitted; CT-002/003 already cover the disabled-with-no-peer wire shape)</li>
+      <li><strong>3 real integration tests</strong> (INT-001..003) inline in <code>PortDetailViewModelTest.kt</code> — fake API client + emitted state assertions, not scaffolding</li>
+      <li><strong>Opt-in CI job</strong> <code>test:contract</code> wired in commit <code>1a5d323</code> with diff-scoped selection — runs only when contract test files or their fixtures change</li>
+      <li>Uses: JUnit 4, <code>PortSecurityFixtures</code> helper, contract-test Gson via <code>GsonFactory</code>, existing <code>test/resources</code></li>
+      <li>Also added: <code>PortSecurityStatus</code> enum to core model layer</li>
+    </ul>
+  </div>
+</div>
+
+<!-- How It Works -->
+<h2>How It Works</h2>
+
+<h3>The Pattern: Golden Fixture + Scenario Matrix</h3>
+
+<p>Each platform has a single JSON fixture file containing every documented API scenario. Tests load the fixture, parse it with the production decoder, and assert the model matches expected values.</p>
+
+<pre>
+// iOS — one test from the suite:
+@Test("CT-007: Security on, non-eero detected — BLOCKED, data disabled")
+func ct007_blockedNonEero() throws {
+    let connections = try loadConnections()          // loads PortSecurity.json
+    let port = try interface(7, in: connections)     // scenario on interface 7
+    let security = try #require(port.portSecurity)
+
+    #expect(security.capable == true)
+    #expect(security.enabled == true)
+    #expect(security.status == .blocked)
+    #expect(port.disabledProtocols.contains(.data))
+}
+</pre>
+
+<pre>
+// Android — same scenario:
+@Test
+fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`() {
+    val port = firstPortOf("scenario_07_blocked_non_eero")
+
+    assertEquals(true, port.portSecurity?.capable)
+    assertEquals(true, port.portSecurity?.enabled)
+    assertEquals(PortSecurityStatus.BLOCKED, port.portSecurity?.status)
+    assertTrue(port.disabledProtocols.orEmpty().contains(PortProtocol.DATA))
+}
+</pre>
+
+<h3>What Gets Validated</h3>
+
+<table>
+<thead>
+<tr><th>Test Category</th><th>What It Catches</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>Scenario matrix (CT-001..003, CT-006..010 on Android; CT-001 → CT-010 on iOS)</td><td>API response shape matches tech spec for every documented state</td><td>Cloud returns <code>status: "BLOCKED"</code> → model parses as <code>.blocked</code> / <code>PortSecurityStatus.BLOCKED</code></td></tr>
+<tr><td>Malformed payloads (CT-M1 → CT-M4, iOS)</td><td>Decoder crashes on bad input (instead of silently failing)</td><td>Missing <code>status</code> field → <code>DecodingError</code> thrown (not nil)</td></tr>
+<tr><td>Unknown enum values (CT-M4)</td><td>Future API values don't crash the app</td><td><code>"FUTURE_STATE"</code> → preserves raw string, no throw</td></tr>
+<tr><td>Toggle responses (CT-011..013)</td><td>Action endpoint response envelope decodes correctly</td><td>Android: bare 200 meta envelope decodes; error envelope surfaces error code. iOS: <code>.disabled</code> pending SUT wiring</td></tr>
+<tr><td>Network poll (CT-014)</td><td>Home alert data surfaces in polling response</td><td>Android: <code>blocked_device.mac</code> present when status is BLOCKED via <code>EthernetPortSecurity</code>. iOS: <code>.disabled</code> pending model extension</td></tr>
+<tr><td>Polling integration (Android INT-001..003)</td><td>Multi-request state transitions update the ViewModel</td><td>Peer auto-propagation emits ACTIVE without confirmation dialog; DISABLED → ACTIVE via poll; DISABLED → BLOCKED surfaces error alert</td></tr>
+</tbody>
+</table>
+
+<!-- Why Not Pact -->
+<h2>Why This Instead of Pact</h2>
+
+<table>
+<thead>
+<tr><th></th><th>This Approach (Golden Fixture)</th><th>Pact (Consumer-Driven Contracts)</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Backend team involvement</strong></td><td>None — fully client-side</td><td>Required — provider must run verification</td></tr>
+<tr><td><strong>New infrastructure</strong></td><td>None — runs in existing test suite</td><td>Pact Broker + provider CI job</td></tr>
+<tr><td><strong>New dependencies</strong></td><td>Zero</td><td>Pact-Swift / Pact-JVM + broker client</td></tr>
+<tr><td><strong>Time to first value</strong></td><td>Days (write fixture + assertions)</td><td>Weeks (broker setup, provider onboarding)</td></tr>
+<tr><td><strong>What it catches</strong></td><td>Decoder breaks on unexpected API shapes</td><td>Same + bilateral deploy-time gating</td></tr>
+<tr><td><strong>What it doesn't catch</strong></td><td>Silent API drift (until fixture is refreshed)</td><td>Nothing (full contract enforcement)</td></tr>
+<tr><td><strong>Maintenance</strong></td><td>Update fixture when API intentionally changes</td><td>Negotiate contract changes with broker</td></tr>
+<tr><td><strong>Graduation path</strong></td><td>Fixtures → Pact consumer expectations (low effort)</td><td>Already at full maturity</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+  <strong>Trade-off summary:</strong> Pact is stronger (bilateral enforcement, deploy gating) but requires
+  backend participation we don't have today. The golden-fixture approach gives us <strong>80% of the value
+  with 0% of the dependency</strong> — and the fixtures become Pact consumer expectations if we graduate later.
+</div>
+
+<!-- What We Catch That Doesn't Exist Today -->
+<h2>What This Catches That Doesn't Exist Today</h2>
+
+<div class="grid grid-3">
+  <div class="card">
+    <h3>Toggle State Mismatch</h3>
+    <p style="font-size: 0.85rem; margin-top: 8px;">If the port-security toggle emits before device state resolves, INT-002/003 fail — the ViewModel's emitted state must reflect the polled backend state, not stale cached values.</p>
+    <p style="font-size: 0.85rem; color: var(--green); margin-top: 8px;">Directly prevents CORE-31743 pattern (July snapshot)</p>
+  </div>
+  <div class="card">
+    <h3>New Enum Value Crash</h3>
+    <p style="font-size: 0.85rem; margin-top: 8px;">CT-M4 asserts that <code>"FUTURE_STATE"</code> decodes without crashing. If someone changes the enum to a failable init, this test catches it.</p>
+    <p style="font-size: 0.85rem; color: var(--green); margin-top: 8px;">Directly prevents CORE-31436 pattern</p>
+  </div>
+  <div class="card">
+    <h3>Schema Drift</h3>
+    <p style="font-size: 0.85rem; margin-top: 8px;">If a dev accidentally changes the model in a way that breaks parsing of the documented scenarios, the CI test fails before merge.</p>
+    <p style="font-size: 0.85rem; color: var(--green); margin-top: 8px;">Guards every documented scenario in the tech spec matrix</p>
+  </div>
+</div>
+
+<!-- CI Integration -->
+<h2>CI Integration</h2>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>iOS</h3>
+    <ul style="font-size: 0.85rem; margin-top: 8px;">
+      <li>Tests live in <code>Eero/EeroNetworking/Tests/Port Security Tests/</code></li>
+      <li>Run as part of existing <code>EeroNetworkingTests</code> target</li>
+      <li>Executes on every PR via <code>mise run test unitTests</code></li>
+      <li><strong>Zero CI config changes</strong> — just merge the branch</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Android</h3>
+    <ul style="font-size: 0.85rem; margin-top: 8px;">
+      <li>Tests live in <code>app/src/test/kotlin/com/eero/android/contract/portsecurity/</code></li>
+      <li>Integration tests live inline in <code>PortDetailViewModelTest.kt</code></li>
+      <li>Opt-in <code>test:contract</code> Gradle job runs only when contract-test files or their fixtures change (diff-scoped selection, commit <code>1a5d323</code>)</li>
+      <li><strong>Zero blast radius on the default pipeline</strong> — merge PR #13181 to land</li>
+    </ul>
+  </div>
+</div>
+
+<!-- How to Expand -->
+<h2>Expanding to the July 2026 Target Interfaces</h2>
+
+<p>The same pattern applies to every interface in the refreshed gap analysis. Here's how the new July batch maps (June baselines still apply — see the June snapshot for CORE-31269, 31436, 31564, etc.):</p>
+
+<table>
+<thead>
+<tr><th>Bug</th><th>Fixture Source</th><th>What to Assert</th><th>Effort</th></tr>
+</thead>
+<tbody>
+<tr><td>CORE-31676 (409 mishandled)</td><td>Record 409 conflict response from staging /speedtest/overrides</td><td>Client parses 409 body, shows conflict toast, refetches version</td><td>~2 hours</td></tr>
+<tr><td>CORE-32133 (organizations.name missing)</td><td>Record GET /2.2/speedtest/overrides response</td><td><code>organizations[].name</code> non-null after decode</td><td>~1 hour</td></tr>
+<tr><td>CORE-31743 (MACSec toggle mismatch)</td><td>Existing <code>PortSecurity.json</code> + fake API client for INT-004</td><td>Toggle emits port state before shield-icon subscribers read</td><td>~3 hours (integration)</td></tr>
+<tr><td>CORE-31936 (Left(e) 400 as ERROR)</td><td>Record 400 response with Left-body branch</td><td>4xx classifies as WARN regardless of body-decode branch</td><td>~1 hour</td></tr>
+<tr><td>CORE-31862 (empty configId)</td><td>Synthetic inline proto payload</td><td>Empty <code>configId</code> rejected at proto-boundary, not logged ERROR</td><td>~30 min</td></tr>
+<tr><td>CORE-31800 (role enum drift)</td><td>Record actual <code>network_admins.role</code> values from staging</td><td>Writer path enforces enum {network-owner, temporary-admin, standard-admin}</td><td>~1 hour</td></tr>
+<tr><td>CORE-32137 (500 on MAC conflict)</td><td>Synthetic conflict against staging factory-registration</td><td>Duplicate MAC returns 409 typed body, not 500</td><td>~1 hour</td></tr>
+<tr><td>CORE-32132 (throttle not enforced)</td><td>Record throttle_backup_bandwidth ACK + wmob0 state</td><td>After ACK, wmob0/ECM stays disconnected until action cleared</td><td>~4 hours (integration)</td></tr>
+<tr><td>CORE-31999 (RG registration race)</td><td>Record RG registration lifecycle</td><td>Backup-eligibility read blocked until <code>registered=true</code></td><td>~4 hours (integration)</td></tr>
+<tr><td>CORE-32155 (Thread toggle hidden)</td><td>Record device otbr capability + client model</td><td>otbr-agent active on device ⇒ Thread toggle surfaces on iOS/Android/Insight</td><td>~3 hours (integration)</td></tr>
+<tr><td>CORE-32109 (Android static-IP fails)</td><td>Record setup replacement flow on iOS + Android</td><td>Static-IP gateway replacement completes end-to-end on both platforms</td><td>~4 hours (integration)</td></tr>
+<tr><td>CORE-31876 (placement test parity)</td><td>Synthetic inline JSON with ethernet-connected leaf</td><td>Placement-test skip predicate honored identically on iOS + Android</td><td>~1 hour</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+  <strong>Total estimated effort:</strong> ~25 hours of contract + integration test writing to cover the 12 target interfaces above.
+  That's less than one sprint for one QAE — and the Android PoC (Draft PR #13181) proves the pattern works, opt-in CI job included.
+</div>
+
+<!-- The Ask -->
+<h2>The Ask</h2>
+
+<div class="grid grid-2">
+  <div class="card" style="border-color: var(--green);">
+    <h3 style="color: var(--green);">What We Need</h3>
+    <ul style="font-size: 0.9rem; margin-top: 12px;">
+      <li>Rebase and open PR for the iOS PoC branch (<code>maria/QA-17147-port-security-tests</code>) — currently 23K commits behind main</li>
+      <li>Land Android Draft PR #13181 (<code>maria/QA-17148-port-security-tests</code>) — <code>test:contract</code> job is opt-in and diff-scoped, zero blast radius on the default pipeline</li>
+      <li>1 QAE sprint to replicate the pattern for the top 5 bug-causing interfaces (Speedtest overrides, MACSec state sync, Retrograde/LTE pipeline, iOS↔Android setup parity, Scala Cloud enum contracts)</li>
+      <li>A weekly CI job to refresh fixtures from staging (drift detection)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>What We Don't Need</h3>
+    <ul style="font-size: 0.9rem; margin-top: 12px;">
+      <li>No Pact broker or new infrastructure</li>
+      <li>No backend team changes or buy-in</li>
+      <li>No new library dependencies</li>
+      <li>No CI pipeline modifications (Android CI job is already opt-in and diff-scoped)</li>
+    </ul>
+  </div>
+</div>
+
+<p style="margin-top: 40px; color: var(--muted); font-size: 0.8rem; text-align: center;">
+  Branches: <code>maria/QA-17147-port-security-tests</code> (ios-client) | <code>maria/QA-17148-port-security-tests</code> (android, Draft PR #13181) | Refreshed 2026-07-20
+</p>
+
+</div>
+</body>
+</html>
