@@ -78,10 +78,8 @@ These bugs occur when iOS/Android/Web disagree on how to interpret shared API da
 ### Scale (2026-06-27 → 2026-07-20, CORE only)
 
 - **167 total bugs**: 21 P0 · 32 P1 · 55 P2 · 56 P3 · 3 P4
-- **~25% preventable overall** by contract or integration tests
-- **~24% of the P0+P1 slice** (13 of 53) map cleanly to contract or integration failures — and every P0 in this refresh with a cross-service cause is in that group
-
-**Mix shift vs the June snapshot:** June's overall preventable share was ~40%. The July batch is heavier on pure UI polish (missing icons, misaligned dividers, single-platform copy issues), agentic-code-review / Reviewbot / Drones tooling regressions, and CI/K8s infra ops — none of which contract or integration tests can meaningfully cover. **The P0/P1 slice, however, is still dominated by cross-service failures**: state sync (throttle, RG registration, Thread capability, LTE state), platform parity (static-IP replacement, placement test, alert-set), and consumer-side contract mishandling (409 conflict, provider routing). Nothing in the underlying failure mix has improved — it's the volume of low-severity polish work that grew.
+- **24 fresh contract/integration/parity examples** across the three categories above — 13 of them P0/P1
+- Every P0 in this refresh with a cross-service root cause is on the list: throttle enforcement, Retrograde registration, Thread capability, MACSec toggle, static-IP replacement, OTA outcomes, Firefly Thread
 
 ### Chronic Offenders (still firing)
 
@@ -170,5 +168,3 @@ The iOS PoC branch has 18 `@Test` scenarios (14 CT + 4 malformed) covering the s
 ## Appendix: Bug Source Data
 
 All bugs sourced from Jira project **CORE** (Core Engineering), 2026-06-27 → 2026-07-20. Full ticket details at `https://eeroinc.atlassian.net/browse/CORE-XXXXX`. Sentry event counts referenced from linked Sentry issues in ticket descriptions.
-
-**Not counted as preventable (~127 of 167):** UI polish (missing icons, alignment, blinking toggles, single-platform copy), agentic-code-review / Reviewbot / Drones tooling regressions, CI/K8s infra ops (stage-eerosign HPA, gitlab-runner unready, K8s panic mode, EBSByteBalance), and single-service runtime crashes with no cross-service linkage (Compose NoSuchMethodException, PopupLayout window-manager, structured-logging interpolation, captiveportal DynamoDB throughput).

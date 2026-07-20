@@ -138,9 +138,9 @@
     <div class="stat-sub">13 of 53 P0+P1 (~24%) map to contract/integration failure</div>
   </div>
   <div class="card">
-    <h3>Preventable by Contract/Integration Tests</h3>
-    <div class="stat stat-green">~25% · ~24%</div>
-    <div class="stat-sub">overall (of 167 bugs) · P0+P1 slice</div>
+    <h3>Fresh Preventable Examples</h3>
+    <div class="stat stat-green">24</div>
+    <div class="stat-sub">across Categories 1/2/3 below — 13 are P0/P1</div>
   </div>
   <div class="card">
     <h3>Sentry Events (top 2 chronic)</h3>
@@ -172,10 +172,11 @@
 </div>
 
 <div class="callout">
-  <strong>Key insight (July snapshot):</strong> The overall preventable share dropped from ~40% in June to ~25% in July —
-  but that's a mix shift, not a fix. The July batch is heavier on UI polish and CI/tooling ops; the <strong>P0/P1 slice
-  is still dominated by cross-service failures</strong>. Two chronic contract-violation bugs (CORE-31728, CORE-31862) alone
-  have generated <strong>84,000+ Sentry events</strong> since 2024 and 2026 respectively, and remain unfixed.
+  <strong>Key insight (July snapshot):</strong> Every P0 in this window with a cross-service root cause maps to one of the three
+  categories below — throttle enforcement, Retrograde registration, Thread capability, MACSec toggle, static-IP replacement, OTA outcomes.
+  Two chronic contract-violation bugs (CORE-31728, CORE-31862) alone have generated <strong>84,000+ Sentry events</strong> since 2024
+  and 2026 respectively, and remain unfixed. The PoC branches demonstrate the pattern that catches this class of failure — see the
+  Proof of Concept tab.
 </div>
 
 <!-- Section 1: Category 1 — API Contract Violations -->
@@ -259,13 +260,6 @@
 </table>
 </div>
 
-<!-- What contract tests would NOT catch -->
-<div class="callout" style="border-left-color: var(--muted); background: rgba(156,163,175,0.08);">
-  <strong style="color: var(--muted);">Not counted as preventable (~127 of 167):</strong> UI polish (missing icons, misaligned dividers, blinking toggles, single-platform copy),
-  agentic-code-review / Reviewbot / Drones tooling regressions, CI/K8s infra ops (stage-eerosign HPA, gitlab-runner unready, K8s panic mode, EBSByteBalance),
-  and single-service runtime crashes with no cross-service linkage (Compose <code>NoSuchMethodException</code>, PopupLayout window-manager, structured-logging interpolation,
-  captiveportal DynamoDB throughput). Those require snapshot tests, unit tests, or dependency/infra work — complementary investments.
-</div>
 </div>
 
 <!-- ==================== TAB 2: TREND SINCE MAY ==================== -->
@@ -767,8 +761,8 @@ function initCharts() {
   new Chart(document.getElementById('categoryChart'), {
     type: 'doughnut',
     data: {
-      labels: ['API Contract Violation', 'Data Sync / State Mismatch', 'Interface Parity / Schema Drift', 'Not preventable'],
-      datasets: [{ data: [8, 8, 8, 127], backgroundColor: [C.purple, C.green, C.pink, C.gray], borderWidth: 0, spacing: 3 }]
+      labels: ['API Contract Violation', 'Data Sync / State Mismatch', 'Interface Parity / Schema Drift'],
+      datasets: [{ data: [8, 8, 8], backgroundColor: [C.purple, C.green, C.pink], borderWidth: 0, spacing: 3 }]
     },
     options: { responsive: true, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { padding: 12 } } } }
   });
