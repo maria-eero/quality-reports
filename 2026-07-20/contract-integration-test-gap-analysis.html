@@ -120,7 +120,7 @@
   <button class="tab-btn active" onclick="switchTab('recent', this)">July Snapshot (3wk)</button>
   <button class="tab-btn" onclick="switchTab('sixty', this)">Trend Since May</button>
   <button class="tab-btn" onclick="switchTab('verification', this)">Code Verification</button>
-  <button class="tab-btn" onclick="switchTab('poc', this)">Proof of Concept</button>
+  <button class="tab-btn" onclick="switchTab('poc', this)">Design &amp; Implementation</button>
 </div>
 
 <!-- ==================== TAB 1: JULY SNAPSHOT ==================== -->
@@ -175,8 +175,8 @@
   <strong>Key insight (July snapshot):</strong> Every P0 in this window with a cross-service root cause maps to one of the three
   categories below — throttle enforcement, Retrograde registration, Thread capability, MACSec toggle, static-IP replacement, OTA outcomes.
   Two chronic contract-violation bugs (CORE-31728, CORE-31862) alone have generated <strong>84,000+ Sentry events</strong> since 2024
-  and 2026 respectively, and remain unfixed. The PoC branches demonstrate the pattern that catches this class of failure — see the
-  Proof of Concept tab.
+  and 2026 respectively, and remain unfixed. The MACSec Port Security tests — merged on Android, in review on iOS — implement the pattern that catches this class of failure — see the
+  Design &amp; Implementation tab.
 </div>
 
 <!-- Section 1: Category 1 — API Contract Violations -->
@@ -293,7 +293,7 @@
   <strong style="color: var(--red);">Pattern reconfirmed after one more sprint:</strong> The same three failure categories continue to file every week.
   July added <strong>7 new P0s</strong> where cross-service state sync or platform parity was the root cause (throttle enforcement, RG registration,
   Thread capability, MACSec toggle, static-IP replacement, OTA outcomes, Firefly Thread) plus a MACSec toggle regression that reintroduces the exact
-  class of bug the PoC branches were built to prevent.
+  class of bug the Port Security contract + integration tests were designed to prevent.
 </div>
 
 <!-- Recurring patterns — the "why this matters" -->
@@ -368,8 +368,8 @@
   <strong>Two snapshots in a row confirm this is systemic:</strong> Every sprint produces bugs from the same three failure categories
   (API contract violations, data sync / state mismatch, interface parity / schema drift). These represent
   <strong>gaps in the testing pyramid</strong> that allow known failure modes to ship repeatedly.
-  Contract tests would prevent the first category; integration tests address the second and third. The PoC branches for both platforms
-  demonstrate the pattern working today — see the Proof of Concept tab.
+  Contract tests prevent the first category; integration tests address the second and third. The MACSec Port Security implementation on both platforms
+  shows the pattern working today — see the Design &amp; Implementation tab.
 </div>
 </div>
 
@@ -378,8 +378,8 @@
 
 <div class="callout" style="border-left-color: var(--green); background: rgba(34,197,94,0.08);">
   <strong style="color: var(--green);">Status update since the June audit:</strong>
-  <strong>Contract tests now exist on Android</strong> — the PoC branch (Draft PR #13181) adds 12 CT-* scenarios plus 3 real integration tests
-  with an opt-in CI job. iOS still has zero merged contract tests, though 18 <code>@Test</code> scenarios are ready on branch <code>maria/QA-17147-port-security-tests</code> pending a rebase.
+  <strong>Contract tests are now merged on Android</strong> — PR #13181 (merged 2026-07-30) adds 12 CT-* scenarios plus 3 real integration tests,
+  running in the standard unit suite on every PR. iOS is close behind: PR #14285 is open and in review with 12 contract + 3 real integration tests on branch <code>maria/QA-17147-port-security-tests</code>.
   The Cloud picture is unchanged from June — no visible contract tests in the Scala monolith (private repo, not auditable from here).
   The counts below reflect the June audit; the July refresh focused on new bug evidence, not a re-audit.
 </div>
@@ -563,27 +563,29 @@
 </div>
 </div>
 
-<!-- ==================== TAB 4: PROOF OF CONCEPT ==================== -->
+<!-- ==================== TAB 4: DESIGN & IMPLEMENTATION ==================== -->
 <div id="tab-poc" class="tab-panel">
 
 <div class="callout" style="border-left-color: var(--green); background: rgba(34,197,94,0.08);">
-  <strong style="color: var(--green);">The PoC is not hypothetical.</strong>
-  Working contract + integration tests already exist on both platforms for MACSec Port Security. Android is in a Draft PR with an opt-in CI job wired up
-  and 3 real integration tests. iOS is on branch but needs a rebase before it's mergeable. This tab documents current status and expansion plan.
+  <strong style="color: var(--green);">The design, shipped.</strong>
+  This is the contract + integration test approach I designed and built for MACSec Port Security across both platforms. The design principle is
+  deliberate: the tests live in the standard unit suite and run on every PR — no Pact, no new dependencies, no separate CI job — so they gate merges
+  by default and cost nothing to maintain. <strong>Android PR #13181 merged 2026-07-30; iOS PR #14285 is open and in review.</strong> This tab walks through the
+  design decisions and how the same pattern scales to the interfaces in the gap analysis.
   <br><br>
   <a href="macsec-contract-test-case-study.html" style="color: var(--green); font-weight: 600;">&#x2192; See the MACsec Case Study</a> — full implementation walkthrough.
 </div>
 
 <div class="grid grid-4">
   <div class="card">
-    <h3>Android PoC</h3>
-    <div class="stat stat-green" style="font-size: 1.4rem;">Draft PR #13181</div>
-    <div class="stat-sub">12 CT + 3 real INT tests, opt-in CI job wired</div>
+    <h3>Android</h3>
+    <div class="stat stat-green" style="font-size: 1.4rem;">PR #13181 merged</div>
+    <div class="stat-sub">12 CT + 3 real INT tests, in the unit suite (2026-07-30)</div>
   </div>
   <div class="card">
-    <h3>iOS PoC</h3>
-    <div class="stat" style="font-size: 1.4rem; color: var(--yellow);">Branch only</div>
-    <div class="stat-sub">18 @Test scenarios, 23K commits behind main, no PR</div>
+    <h3>iOS</h3>
+    <div class="stat" style="font-size: 1.4rem; color: var(--green);">PR #14285 open</div>
+    <div class="stat-sub">12 CT + 3 real INT tests, in review</div>
   </div>
   <div class="card">
     <h3>Tooling</h3>
@@ -597,42 +599,42 @@
   </div>
 </div>
 
-<!-- PoC Status -->
-<div class="section-title">PoC Status by Platform</div>
+<!-- Implementation Status -->
+<div class="section-title">Implementation Status by Platform</div>
 <div class="grid grid-2">
   <div class="card" style="border-color: rgba(34,197,94,0.4);">
-    <h3 style="color: var(--green);">Android — Draft PR #13181</h3>
-    <p style="font-size: 0.85rem; margin-top: 8px;">Branch: <code>maria/QA-17148-port-security-tests</code>, last commit 2026-07-10</p>
+    <h3 style="color: var(--green);">Android — PR #13181 merged</h3>
+    <p style="font-size: 0.85rem; margin-top: 8px;">Merged 2026-07-30 · reference implementation</p>
     <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
       <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 12 <code>@Test</code> methods in <code>PortSecurityContractTest.kt</code> (CT-001..003, CT-006..014)</li>
       <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 3 real integration tests (INT-001..003) inline in <code>PortDetailViewModelTest.kt</code></li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> Opt-in <code>test:contract</code> CI job wired (commit <code>1a5d323</code>), diff-scoped selection</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> Zero blast radius on the default pipeline</li>
-      <li style="padding: 6px 0;"><strong>Ask:</strong> Review and land the PR</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> Runs in the standard unit suite on every PR — no separate job, label, or selection script</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> Four files, all under <code>app/src/test/</code> — zero CI config touched</li>
+      <li style="padding: 6px 0;"><strong>Now gating every Android PR by default.</strong></li>
     </ul>
   </div>
-  <div class="card" style="border-color: rgba(234,179,8,0.4);">
-    <h3 style="color: var(--yellow);">iOS — needs rebase</h3>
-    <p style="font-size: 0.85rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code>, last commit 2026-05-22</p>
+  <div class="card" style="border-color: rgba(34,197,94,0.4);">
+    <h3 style="color: var(--green);">iOS — PR #14285 open</h3>
+    <p style="font-size: 0.85rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> · in review</p>
     <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 18 <code>@Test</code> scenarios in <code>PortSecurityContractTests.swift</code> (10 CT + 4 CT-M + 4 toggle/poll)</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--yellow);">!</span> CT-011..014 currently <code>.disabled</code>, pending SUT wiring</li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> INT-001..003 still TODO stubs in <code>PortSecurityIntegrationTests.swift</code></li>
-      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--red);">&#x2717;</span> Branch is 23K commits behind <code>main</code> — no PR yet</li>
-      <li style="padding: 6px 0;"><strong>Ask:</strong> 1 day to rebase, port INT stubs to real tests, open PR</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 12 <code>@Test</code> methods in <code>PortSecurityContractTests.swift</code> (8 CT + 4 CT-M), wired against the real SUT</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 3 real integration tests (INT-001..003) in <code>PortDetailsTests.swift</code> — no longer TODO stubs</li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> SUT wiring landed in the PR — <code>port_security</code> decoding on <code>Connections.swift</code></li>
+      <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> Runs in the existing test targets — zero CI config changes</li>
+      <li style="padding: 6px 0;"><strong>Ask:</strong> review and land the PR</li>
     </ul>
   </div>
 </div>
 
 <!-- Expansion Plan -->
-<div class="section-title">Expansion Plan (after PoC lands)</div>
+<div class="section-title">Scaling the Design to the Target Interfaces</div>
 <div class="card" style="overflow-x: auto;">
 <table>
 <thead>
 <tr><th>Week</th><th>Deliverable</th><th>Owner</th><th>Done When</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>0</strong></td><td>Land Android PR #13181 (opt-in job, no blast radius); rebase iOS branch and open PR</td><td>QAE (Maria) + Android/iOS reviewers</td><td>Both PoC branches merged</td></tr>
+<tr><td><strong>0</strong></td><td>Land iOS PR #14285 (Android #13181 already merged 2026-07-30)</td><td>QAE (Maria) + iOS reviewers</td><td>Both platforms' Port Security tests merged</td></tr>
 <tr><td><strong>1</strong></td><td>Extend to Speedtest overrides API contract (CORE-31676, 32133, 32221) — schema + 409 handling + provider routing</td><td>QAE (Maria)</td><td>Contract tests fail on missing <code>organizations[].name</code>, on 409 mishandling, on wrong-provider write</td></tr>
 <tr><td><strong>2</strong></td><td>Extend to Retrograde / LTE-backup integration tests (CORE-31999, 32132, 32049)</td><td>QAE (Maria)</td><td>Integration tests validate RG registration → backup eligibility, throttle ACK → wmob0 stays down, <code>ring_settings.lte_state</code> freshness</td></tr>
 <tr><td><strong>3</strong></td><td>Extend to iOS ↔ Android setup parity (CORE-32109, 31876, 31750) — shared setup replacement + placement-test predicate</td><td>QAE (Maria)</td><td>Same acceptance test runs on both platforms against same eeroOS build</td></tr>
@@ -711,15 +713,15 @@
 <tr><td>Sentry events for covered interfaces</td><td>375K+ cumulative</td><td>Growth rate → 0 for first 3 interfaces</td><td>Growth rate → 0 for all Phase 1 interfaces</td></tr>
 <tr><td>Contract-preventable P0/P1 bugs filed</td><td>~4-5/week</td><td>No new bugs of covered types</td><td>50% reduction in this category overall</td></tr>
 <tr><td>Time-to-detect contract violations</td><td>Days to months (Sentry alert or QA find)</td><td>Minutes (CI failure on PR)</td><td>Minutes (CI failure on PR)</td></tr>
-<tr><td>Contract test count</td><td>0 across all platforms</td><td>3 (CORE-31269, 31436, 31564)</td><td>10+ covering all Phase 1 categories</td></tr>
+<tr><td>Contract test count</td><td>15 merged on Android (Port Security); 15 in review on iOS</td><td>Both platforms merged + 3 more interfaces (CORE-31269, 31436, 31564)</td><td>10+ interfaces covering all Phase 1 categories</td></tr>
 </tbody>
 </table>
 </div>
 
 <div class="callout" style="margin-top: 24px;">
-  <strong>Ask:</strong> (1) Review and land the Android Draft PR — opt-in CI job, no blast radius. (2) Give me one day to rebase the iOS PoC and open its PR.
-  (3) Then 1 QAE sprint to extend the pattern to the top 5 target interfaces above. No new dependencies. If Sentry events for covered interfaces stop growing
-  within 30 days, expand to the remaining Category-1/2/3 bugs from the July snapshot.
+  <strong>Ask:</strong> (1) Review and land iOS PR #14285 (Android #13181 is already merged and gating every PR). (2) Then 1 QAE sprint to extend the design to the
+  top 5 target interfaces above. No new dependencies. If Sentry events for covered interfaces stop growing within 30 days, expand to the remaining
+  Category-1/2/3 bugs from the July snapshot.
 </div>
 
 </div>

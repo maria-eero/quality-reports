@@ -8,9 +8,9 @@
 
 ## Executive Summary
 
-In the last ~3 weeks (2026-06-27 → 2026-07-20), CORE filed **167 bugs**: **21 P0 blockers**, **32 P1 criticals**, **55 P2 majors**, **56 P3 minors**, and 3 P4s. The June proposal is now backed by a second month of data showing the same failure patterns — API contract violations, cross-service state drift, and iOS/Android parity gaps — this time including two new customer-facing sign-up outages and a MACSec toggle regression that reintroduces the exact class of bug the PoC branches were built to prevent.
+In the last ~3 weeks (2026-06-27 → 2026-07-20), CORE filed **167 bugs**: **21 P0 blockers**, **32 P1 criticals**, **55 P2 majors**, **56 P3 minors**, and 3 P4s. The June proposal is now backed by a second month of data showing the same failure patterns — API contract violations, cross-service state drift, and iOS/Android parity gaps — this time including two new customer-facing sign-up outages and a MACSec toggle regression that reintroduces the exact class of bug the Port Security tests were designed to prevent.
 
-This document refreshes the June evidence with July's bugs, and updates the proof-of-concept status: the Android PoC (`maria/QA-17148`) now has an opt-in `test:contract` CI job wired up and 3 real integration tests inline in `PortDetailViewModelTest`. The iOS PoC (`maria/QA-17147`) still holds 18 `@Test` scenarios (14 contract + 4 malformed-payload + 4 toggle/poll) — but the branch is 23K commits behind main and has never been PR'd. Concrete asks are at the end.
+This document refreshes the June evidence with July's bugs, and the design it proposed is now shipping: the contract + integration test approach I designed for MACSec Port Security is **merged on Android** (`maria/QA-17148`, PR #13181, 2026-07-30) and **in review on iOS** (`maria/QA-17147`, PR #14285). The design decision that matters: the tests live in the standard unit suite and run on every PR — no opt-in job, no diff-scoped selection, no new dependencies. An earlier iteration gated them behind an opt-in `test:contract` job; after discussing it with an Android engineer we dropped that in favor of unit scope, since these tests are fast, deterministic, and dependency-free and there's no reason to treat them differently from any other unit test. Concrete asks are at the end.
 
 ---
 
@@ -106,15 +106,14 @@ Two of these (CORE-31728, CORE-31862) alone represent >84,000 Sentry events over
 
 ## Proposed Solution
 
-### Phase 1: Merge and expand the existing PoC (immediate)
+### Phase 1: Land the reference implementation (immediate)
 
-The Android PoC branch already has:
+The Android implementation is **merged** (PR #13181, 2026-07-30):
 - 12 `CT-*` contract tests in `app/src/test/kotlin/com/eero/android/contract/portsecurity/PortSecurityContractTest.kt` (CT-001..003, CT-006..014 — CT-004/005 intentionally omitted, see case study)
 - 3 real INT-001..003 integration tests inline in `PortDetailViewModelTest.kt`
-- An opt-in `test:contract` CI job with diff-scoped selection (commit `1a5d323`)
-- Draft PR #13181 open on eero-inc/android (last commit 2026-07-10)
+- Lives in the standard unit source set (`app/src/test/`) and runs in the existing per-PR unit job — no separate CI job, label, or selection script
 
-The iOS PoC branch has 18 `@Test` scenarios (14 CT + 4 malformed) covering the same tech-spec matrix, but is 23K commits behind main and has never been PR'd. Rebase + open PR is the first ask.
+The iOS implementation is **open in review** (PR #14285): 12 `@Test` scenarios (8 CT + 4 malformed) plus 3 real INT-001..003 integration tests in `PortDetailsTests.swift`, wired against the real SUT. Landing it is the first ask.
 
 ### Phase 2: Contract Tests (2-4 weeks)
 
@@ -131,13 +130,13 @@ The iOS PoC branch has 18 `@Test` scenarios (14 CT + 4 malformed) covering the s
 4. **iOS ↔ Android setup + detail parity** — static-IP replacement, placement-test skip, "Connected to" semantics, live-data idle rendering, alert-set (CORE-32109, CORE-31876, CORE-31750, CORE-32024, CORE-31458)
 5. **Scala Cloud error-code / enum contracts** — AmazonCloudLink Left(e), FutureRetry shutdown, NodeSwitchConfig empty configId, network_admins.role, hardwaredata 500→409 (CORE-31936, CORE-31728, CORE-31862, CORE-31800, CORE-32137)
 
-**How:** Same golden-fixture pattern as the PoC — client-side contract tests using the production decoder. No Pact, no new infrastructure. See the [MACsec case study](./macsec-contract-test-case-study.html) for the working template.
+**How:** Same golden-fixture pattern as the Port Security implementation — client-side contract tests using the production decoder. No Pact, no new infrastructure. See the [MACsec case study](./macsec-contract-test-case-study.html) for the working template.
 
 ### Phase 3: Integration Tests (4-8 weeks)
 
 **What:** Cross-service data flow tests validating state transitions complete end-to-end, and UI state reflects backend state after mutations.
 
-**Where to start:** The three P0 state-sync flows above (throttle, RG registration, Thread capability) plus the DARS / SSID / port-toggle flows from the June snapshot. The Android `PortDetailViewModel` INT-001..003 pattern (fake API client + emitted state assertion) is directly reusable.
+**Where to start:** The three P0 state-sync flows above (throttle, RG registration, Thread capability) plus the DARS / SSID / port-toggle flows from the June snapshot. The Android `PortDetailViewModel` INT-001..003 pattern (fake API client + emitted state assertion) — already merged — is directly reusable.
 
 **How:** Run against staging or against faked API clients, in existing test suites, in CI on every PR.
 
@@ -151,15 +150,14 @@ The iOS PoC branch has 18 `@Test` scenarios (14 CT + 4 malformed) covering the s
 | P0/P1 bugs from cross-service failures | 13 of 53 in the last 3 weeks (~24%) | Reduced to near-zero for covered interfaces |
 | Time-to-detect | Days to months (Sentry alerts, customer complaints, dogfood escalation) | Minutes (CI failure) |
 | Dev cost of late-detected bugs | High (debugging prod, hotfixes, dogfood rollbacks) | Low (failing test shows exact contract) |
-| Existing PoC | 30 contract tests + 3 real integration tests, 0 CI dependencies, ready to merge | — |
+| Reference implementation | Android merged (12 CT + 3 INT); iOS in review (12 CT + 3 INT). 0 new dependencies, runs in the unit suite | — |
 
 ---
 
 ## Next Steps
 
-1. **Rebase and open PR for iOS PoC** (`maria/QA-17147-port-security-tests`) — 23K commits behind, needs a merge before it's reviewable
-2. **Land Android PR #13181** — `test:contract` job is opt-in and diff-scoped; zero blast radius on the default pipeline
-3. **1 QAE sprint** — replicate the pattern for the top-5 interfaces above (fixtures + assertions), same golden-fixture approach as the PoC
+1. **Land iOS PR #14285** (`maria/QA-17147-port-security-tests`) — 12 CT + 3 real INT tests, in review now (Android #13181 already merged 2026-07-30)
+2. **1 QAE sprint** — replicate the pattern for the top-5 interfaces above (fixtures + assertions), same golden-fixture approach as the reference implementation
 4. **Weekly fixture refresh** — small CI job that re-records fixtures from staging, alerts on schema drift
 5. **Review checkpoint** — at end of sprint, compare new PR-time contract-test failures against Sentry events on the same interfaces
 

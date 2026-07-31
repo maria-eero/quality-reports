@@ -110,19 +110,19 @@
 <a class="back-link" href="contract-integration-test-gap-analysis.html">&larr; Back to Gap Analysis</a>
 
 <h1>MACsec Port Security — Contract Test Case Study</h1>
-<p class="subtitle">A working implementation of contract + integration tests, already built for iOS and Android. No Pact, no new infrastructure. Refreshed 2026-07-20.</p>
+<p class="subtitle">A working implementation of contract + integration tests, built for iOS and Android. They live in the existing unit-test suite and run on every PR — no Pact, no new infrastructure, no CI wiring. Refreshed 2026-07-31.</p>
 
 <!-- KPIs -->
 <div class="grid grid-4">
   <div class="card">
     <h3>Contract Tests</h3>
-    <div class="stat stat-green">12 · 18</div>
-    <div class="stat-sub">Android (12 @Test, CT-004/005 omitted) · iOS (18 @Test — 14 CT + 4 CT-M)</div>
+    <div class="stat stat-green">12 · 12</div>
+    <div class="stat-sub">Android (12 @Test, CT-004/005 omitted) · iOS (12 @Test — 8 CT + 4 CT-M)</div>
   </div>
   <div class="card">
     <h3>Integration Tests</h3>
-    <div class="stat stat-accent">3 · 0</div>
-    <div class="stat-sub">Android: real INT-001..003 in <code>PortDetailViewModelTest</code> · iOS: still TODO stubs</div>
+    <div class="stat stat-accent">3 · 3</div>
+    <div class="stat-sub">Real INT-001..003 both platforms — Android <code>PortDetailViewModelTest</code> · iOS <code>PortDetailsTests</code></div>
   </div>
   <div class="card">
     <h3>New Dependencies</h3>
@@ -131,18 +131,18 @@
   </div>
   <div class="card">
     <h3>CI Changes</h3>
-    <div class="stat" style="color: var(--text);">1</div>
-    <div class="stat-sub">Android: opt-in <code>test:contract</code> job wired (commit <code>1a5d323</code>) · iOS: none needed</div>
+    <div class="stat" style="color: var(--text);">0</div>
+    <div class="stat-sub">Both platforms run in the existing unit suite on every PR</div>
   </div>
 </div>
 
 <div class="callout-green callout">
-  <strong>This already exists — Android is production-ready; iOS needs a rebase.</strong>
-  The pattern described in the gap analysis proposal has been implemented for Port Security on both platforms.
-  Android is in Draft PR #13181 (eero-inc/android, last commit 2026-07-10) with a real opt-in CI job.
-  iOS branch <code>maria/QA-17147-port-security-tests</code> holds 18 <code>@Test</code> scenarios but is 23K commits behind main
-  and has never been PR'd. This document presents the pattern as the template for expanding coverage
-  to the target interfaces in the July 2026 gap analysis.
+  <strong>This is real, landing code — Android is merged; iOS is in review.</strong>
+  The pattern described in the gap analysis proposal has been implemented for Port Security on both platforms,
+  and the tests live in the standard unit-test suite so they run on every PR with no special CI wiring.
+  Android <strong>PR #13181 merged 2026-07-30</strong> (eero-inc/android). iOS <strong>PR #14285 is open and in review</strong>
+  (eero-inc/ios-client) with 12 contract + 3 real integration tests. This document presents the pattern as the
+  template for expanding coverage to the target interfaces in the July 2026 gap analysis.
 </div>
 
 <!-- What We Built -->
@@ -151,22 +151,22 @@
 <div class="grid grid-2">
   <div class="card">
     <h3>iOS (Swift Testing)</h3>
-    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> — <span style="color: var(--yellow);">no PR yet, 23K commits behind main</span></p>
+    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> — <span style="color: var(--green);">PR #14285 open, in review</span></p>
     <ul style="font-size: 0.85rem; margin-top: 12px;">
-      <li><strong>10 scenario tests</strong> (CT-001 → CT-010) — every state from the tech spec's scenario matrix</li>
+      <li><strong>8 scenario tests</strong> (CT-001..003, CT-006, CT-007, CT-011, CT-013, CT-014) — the documented states plus toggle-response and network-poll envelopes, now wired against the real SUT</li>
       <li><strong>4 malformed-payload tests</strong> (CT-M1 → CT-M4) — invalid JSON, wrong types, missing fields, unknown enums</li>
-      <li><strong>4 toggle/poll tests</strong> (CT-011..014) — currently <code>.disabled</code>, pending SUT wiring (POST /ports/{n}/actions request builder + response wrapper, port_security field on <code>Eero.EthernetStatus.InterfaceStatus</code>)</li>
-      <li><strong>3 integration tests</strong> (INT-001 → INT-003) — still TODO stubs in <code>Eero/integrationTests/Features/Port Security/PortSecurityIntegrationTests.swift</code></li>
+      <li><strong>3 real integration tests</strong> (INT-001..003) in <code>Eero/EeroDogfoodTests/Components/Port Details/PortDetailsTests.swift</code> — polling-driven state transitions asserted on <code>PortDetailViewModel</code>, no longer TODO stubs</li>
+      <li>SUT wiring landed in the PR: <code>port_security</code> decoding on <code>Connections.swift</code> plus a <code>DebugPortSecurityView</code></li>
       <li>Uses: <code>EeroAPI.jsonDecoder</code>, Swift Testing <code>@Test</code>, existing test bundle</li>
     </ul>
   </div>
   <div class="card">
     <h3>Android (JUnit + Gson)</h3>
-    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17148-port-security-tests</code> — <span style="color: var(--green);">Draft PR #13181, last commit 2026-07-10</span></p>
+    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17148-port-security-tests</code> — <span style="color: var(--green);">PR #13181 merged 2026-07-30</span></p>
     <ul style="font-size: 0.85rem; margin-top: 12px;">
       <li><strong>12 <code>@Test</code> methods</strong> in <code>PortSecurityContractTest.kt</code> — CT-001..003 + CT-006..014 (CT-004/005 intentionally omitted; CT-002/003 already cover the disabled-with-no-peer wire shape)</li>
       <li><strong>3 real integration tests</strong> (INT-001..003) inline in <code>PortDetailViewModelTest.kt</code> — fake API client + emitted state assertions, not scaffolding</li>
-      <li><strong>Opt-in CI job</strong> <code>test:contract</code> wired in commit <code>1a5d323</code> with diff-scoped selection — runs only when contract test files or their fixtures change</li>
+      <li><strong>No CI changes</strong> — the tests live in the standard unit source set (<code>app/src/test/</code>) and run in the existing per-PR unit job</li>
       <li>Uses: JUnit 4, <code>PortSecurityFixtures</code> helper, contract-test Gson via <code>GsonFactory</code>, existing <code>test/resources</code></li>
       <li>Also added: <code>PortSecurityStatus</code> enum to core model layer</li>
     </ul>
@@ -176,67 +176,25 @@
 <!-- How Tests Run -->
 <h2>How Tests Run</h2>
 
-<h3>Android — opt-in <code>test:contract</code> CI job</h3>
-
-<p>Contract and integration tests are excluded from the default per-PR unit-test job, and re-enabled only when a PR is labelled <code>run-contract-tests</code>. Even then, they run only for the packages whose owned files actually changed in the diff. Zero-diff PRs and unrelated PRs that carry the label produce a no-op job that exits early.</p>
-
-<div class="grid grid-2">
-  <div class="card">
-    <h3>Default per-PR run</h3>
-    <pre style="font-size: 0.78rem; margin-top: 8px;">./gradlew testEeroDogfoodDebugUnitTest \
-  -PtestShard=$CI_NODE_INDEX \
-  -PtestTotalShards=$CI_NODE_TOTAL \
-  -PexcludeContractTests=true</pre>
-    <p style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
-      <code>-PexcludeContractTests=true</code> filters out any test file under
-      <code>/com/eero/android/contract/</code> or <code>/com/eero/android/integration/</code>
-      from the shard filter in <code>build.gradle</code>. Local unsharded runs are unaffected.
-    </p>
-  </div>
-  <div class="card">
-    <h3>Opt-in <code>test:contract</code> job</h3>
-    <pre style="font-size: 0.78rem; margin-top: 8px;">rules:
-  - if: '$CI_MERGE_REQUEST_LABELS =~ /(^|,)run-contract-tests(,|$)/'
-script:
-  - selected=$(./scripts/select-contract-tests.sh)
-  - if [ -z "$selected" ]; then
-      echo "No contract tests for this diff"
-      exit 0
-    fi
-  - eval "./gradlew :app:testEeroDogfoodDebugUnitTest $selected"</pre>
-    <p style="font-size: 0.85rem; margin-top: 8px; color: var(--muted);">
-      Job source: <code>.test-include.yml</code> (commit <code>1a5d323</code>). 30-minute timeout, publishes JUnit reports as artifacts on failure.
-    </p>
-  </div>
+<div class="callout-green callout">
+  <strong>They run on every PR, in the suite that already exists.</strong>
+  Both platforms put the contract + integration tests in the standard unit-test source set — Android under
+  <code>app/src/test/</code>, iOS in the existing <code>EeroNetworkingTests</code> / <code>EeroDogfoodTests</code> targets.
+  No opt-in label, no diff-scoped selection script, no separate CI job. A contract violation fails the same
+  per-PR unit job every other test failure surfaces in.
 </div>
 
-<h3>Diff-scoped selection</h3>
+<p>An earlier iteration of the Android PoC gated these behind an opt-in <code>test:contract</code> job with diff-scoped test selection, on the theory that contract tests were "extra" and shouldn't slow the default pipeline. After talking it through with an Android engineer, we dropped that: these tests are fast, deterministic, and dependency-free, so there's no reason to treat them differently from any other unit test. Folding them into the unit scope means they're impossible to forget to run, need zero CI maintenance, and gate every PR by default — which is exactly the behavior we want from a contract test.</p>
 
-<p><code>scripts/select-contract-tests.sh</code> reads the PR diff against <code>$CI_MERGE_REQUEST_DIFF_BASE_SHA</code> (or <code>origin/development</code> locally), matches each changed file against an inline mapping table, and emits deduplicated Gradle <code>--tests</code> flags. Emits nothing when no mapped path changed, so the job exits <code>0</code> without touching Gradle.</p>
+<h3>Android</h3>
 
-<div class="card" style="overflow-x: auto;">
-<table>
-<thead>
-<tr><th>Changed file pattern</th><th>Triggers</th></tr>
-</thead>
-<tbody>
-<tr><td><code>app/src/test/kotlin/com/eero/android/contract/portsecurity/</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>app/src/test/resources/fixtures/port_security/</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>data/network/.../PortSecurity(Status)?.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>data/network/.../EthernetPortSecurity.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>core/.../PortInterface.kt</code>, <code>PortAction.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>core/.../GsonFactory.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>app/.../BuildMacsecAlertStateUseCase.kt</code>, <code>MacsecAlertState.kt</code></td><td><code>com.eero.android.contract.portsecurity.*</code></td></tr>
-<tr><td><code>feature/.../PortDetailViewModel.kt</code>, <code>ConnectionsPollingUseCase.kt</code></td><td><code>PortDetailViewModelTest</code> (INT-001..003)</td></tr>
-<tr><td><code>app/src/test/.../PortDetailViewModelTest.kt</code></td><td><code>PortDetailViewModelTest</code> (INT-001..003)</td></tr>
-</tbody>
-</table>
-</div>
+<pre style="font-size: 0.8rem;">./gradlew testEeroDogfoodDebugUnitTest   # the existing per-PR unit job — nothing added</pre>
 
-<p style="font-size: 0.85rem; color: var(--muted); margin-top: 12px;">
-  Verified locally with JDK 17: unsharded default run drops from 618 → 616 shard tests with the flag (matching the two contract/integration test files);
-  <code>test:contract</code> emits <code>--tests "com.eero.android.contract.portsecurity.*" --tests "com.eero.android.integration.portsecurity.*"</code> for the PoC branch,
-  12/12 contract tests pass, 3/3 integration tests execute as designed, <code>BUILD SUCCESSFUL</code>. Kuiper-only diff simulated: script emits nothing, CI job exits early.
+<p style="font-size: 0.85rem; color: var(--muted); margin-top: 8px;">
+  The merged PR (#13181) touches four files, all under <code>app/src/test/</code>: <code>PortSecurityContractTest.kt</code>,
+  <code>PortSecurityFixtures.kt</code>, <code>PortDetailViewModelTest.kt</code>, and the <code>scenarios.json</code> fixture.
+  No <code>.gitlab-ci.yml</code>, no selection script, no label. Verified locally with JDK 17: 12/12 contract tests pass,
+  3/3 integration tests execute as designed, <code>BUILD SUCCESSFUL</code>.
 </p>
 
 <h3>Android — fixture flow</h3>
@@ -261,11 +219,11 @@ app/src/test/resources/fixtures/port_security/scenarios.json
 
 <h3>iOS — Swift Testing bundle</h3>
 
-<p>iOS tests live in <code>Eero/EeroNetworking/Tests/Port Security Tests/PortSecurityContractTests.swift</code> and run inside the existing <code>EeroNetworkingTests</code> target. Fixtures are loaded from a single <code>PortSecurity.json</code> next to the test file and decoded via <code>EeroAPI.jsonDecoder</code> — the same <code>JSONDecoder</code> production uses. Invocation:</p>
+<p>iOS contract tests live in <code>Eero/EeroNetworking/Tests/Port Security Tests/PortSecurityContractTests.swift</code> and run inside the existing <code>EeroNetworkingTests</code> target; the integration tests (INT-001..003) live in <code>Eero/EeroDogfoodTests/Components/Port Details/PortDetailsTests.swift</code>. Fixtures are loaded from a single <code>PortSecurity.json</code> next to the test file and decoded via <code>EeroAPI.jsonDecoder</code> — the same <code>JSONDecoder</code> production uses. Invocation:</p>
 
 <pre>mise run test unitTests  # or the EeroNetworkingTests scheme in Xcode</pre>
 
-<p>No CI-config change needed — the tests run as part of the existing PR test job on <code>ios-client</code>. Once the branch is rebased and PR'd, the tests execute on every PR that touches <code>Eero/EeroNetworking/</code>.</p>
+<p>No CI-config change needed — the tests run as part of the existing PR test job on <code>ios-client</code>. This is now open as PR #14285; once it merges, the tests execute on every PR that touches the covered targets.</p>
 
 <h3>What a failure looks like</h3>
 
@@ -324,8 +282,8 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
 <tr><td>Scenario matrix (CT-001..003, CT-006..010 on Android; CT-001 → CT-010 on iOS)</td><td>API response shape matches tech spec for every documented state</td><td>Cloud returns <code>status: "BLOCKED"</code> → model parses as <code>.blocked</code> / <code>PortSecurityStatus.BLOCKED</code></td></tr>
 <tr><td>Malformed payloads (CT-M1 → CT-M4, iOS)</td><td>Decoder crashes on bad input (instead of silently failing)</td><td>Missing <code>status</code> field → <code>DecodingError</code> thrown (not nil)</td></tr>
 <tr><td>Unknown enum values (CT-M4)</td><td>Future API values don't crash the app</td><td><code>"FUTURE_STATE"</code> → preserves raw string, no throw</td></tr>
-<tr><td>Toggle responses (CT-011..013)</td><td>Action endpoint response envelope decodes correctly</td><td>Android: bare 200 meta envelope decodes; error envelope surfaces error code. iOS: <code>.disabled</code> pending SUT wiring</td></tr>
-<tr><td>Network poll (CT-014)</td><td>Home alert data surfaces in polling response</td><td>Android: <code>blocked_device.mac</code> present when status is BLOCKED via <code>EthernetPortSecurity</code>. iOS: <code>.disabled</code> pending model extension</td></tr>
+<tr><td>Toggle responses (CT-011, CT-013)</td><td>Action endpoint response envelope decodes correctly</td><td>Both platforms: bare 200 meta envelope decodes; error envelope surfaces the error code. iOS parses <code>UserAPIErrorResponse</code> with <code>code=200</code> / non-200</td></tr>
+<tr><td>Network poll (CT-014)</td><td>Home alert data surfaces in polling response</td><td>Android: <code>blocked_device.mac</code> present when BLOCKED via <code>EthernetPortSecurity</code>. iOS: <code>status=BLOCKED</code>, <code>navigation_target=true</code>, <code>eero_url</code> set</td></tr>
 <tr><td>Polling integration (Android INT-001..003)</td><td>Multi-request state transitions update the ViewModel</td><td>Peer auto-propagation emits ACTIVE without confirmation dialog; DISABLED → ACTIVE via poll; DISABLED → BLOCKED surfaces error alert</td></tr>
 </tbody>
 </table>
@@ -442,7 +400,7 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
 <div class="callout" style="margin-top: 20px;">
   <strong>Why the mapping matters:</strong> Each of the CORE tickets on the right side of this table represents a real bug that shipped.
   The tests on the left side aren't "extra insurance for a hypothetical failure" — they're the specific assertions that would have caught
-  the specific line of code that shipped broken. That's why the PoC targets the highest-volume Sentry offenders and the July P0s: same class of failure, tests catch it.
+  the specific line of code that shipped broken. That's why this implementation targets the highest-volume Sentry offenders and the July P0s: same class of failure, tests catch it.
 </div>
 
 <!-- CI Integration -->
@@ -450,21 +408,21 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
 
 <div class="grid grid-2">
   <div class="card">
-    <h3>iOS</h3>
+    <h3>iOS <span class="badge badge-yellow">PR #14285 open</span></h3>
     <ul style="font-size: 0.85rem; margin-top: 8px;">
-      <li>Tests live in <code>Eero/EeroNetworking/Tests/Port Security Tests/</code></li>
-      <li>Run as part of existing <code>EeroNetworkingTests</code> target</li>
+      <li>Contract tests in <code>Eero/EeroNetworking/Tests/Port Security Tests/</code>; integration tests in <code>Eero/EeroDogfoodTests/Components/Port Details/PortDetailsTests.swift</code></li>
+      <li>Run as part of the existing <code>EeroNetworkingTests</code> / <code>EeroDogfoodTests</code> targets</li>
       <li>Executes on every PR via <code>mise run test unitTests</code></li>
-      <li><strong>Zero CI config changes</strong> — just merge the branch</li>
+      <li><strong>Zero CI config changes</strong> — merges with the standard test job</li>
     </ul>
   </div>
   <div class="card">
-    <h3>Android</h3>
+    <h3>Android <span class="badge badge-green">PR #13181 merged</span></h3>
     <ul style="font-size: 0.85rem; margin-top: 8px;">
       <li>Tests live in <code>app/src/test/kotlin/com/eero/android/contract/portsecurity/</code></li>
       <li>Integration tests live inline in <code>PortDetailViewModelTest.kt</code></li>
-      <li>Opt-in <code>test:contract</code> Gradle job runs only when contract-test files or their fixtures change (diff-scoped selection, commit <code>1a5d323</code>)</li>
-      <li><strong>Zero blast radius on the default pipeline</strong> — merge PR #13181 to land</li>
+      <li>Run in the standard per-PR unit job — no separate job, no label, no selection script</li>
+      <li><strong>Zero CI config changes</strong> — merged 2026-07-30 and now gating every PR</li>
     </ul>
   </div>
 </div>
@@ -496,7 +454,7 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
 
 <div class="callout">
   <strong>Total estimated effort:</strong> ~25 hours of contract + integration test writing to cover the 12 target interfaces above.
-  That's less than one sprint for one QAE — and the Android PoC (Draft PR #13181) proves the pattern works, opt-in CI job included.
+  That's less than one sprint for one QAE — and the merged Android implementation (PR #13181) proves the pattern works, running in the standard unit suite on every PR.
 </div>
 
 <!-- The Ask -->
@@ -506,8 +464,7 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
   <div class="card" style="border-color: var(--green);">
     <h3 style="color: var(--green);">What We Need</h3>
     <ul style="font-size: 0.9rem; margin-top: 12px;">
-      <li>Rebase and open PR for the iOS PoC branch (<code>maria/QA-17147-port-security-tests</code>) — currently 23K commits behind main</li>
-      <li>Land Android Draft PR #13181 (<code>maria/QA-17148-port-security-tests</code>) — <code>test:contract</code> job is opt-in and diff-scoped, zero blast radius on the default pipeline</li>
+      <li>Review and land iOS PR #14285 (<code>maria/QA-17147-port-security-tests</code>) — 12 contract + 3 integration tests, in review now</li>
       <li>1 QAE sprint to replicate the pattern for the top 5 bug-causing interfaces (Speedtest overrides, MACSec state sync, Retrograde/LTE pipeline, iOS↔Android setup parity, Scala Cloud enum contracts)</li>
       <li>A weekly CI job to refresh fixtures from staging (drift detection)</li>
     </ul>
@@ -518,13 +475,13 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
       <li>No Pact broker or new infrastructure</li>
       <li>No backend team changes or buy-in</li>
       <li>No new library dependencies</li>
-      <li>No CI pipeline modifications (Android CI job is already opt-in and diff-scoped)</li>
+      <li>No CI pipeline modifications — the tests run in the unit suite that already gates every PR</li>
     </ul>
   </div>
 </div>
 
 <p style="margin-top: 40px; color: var(--muted); font-size: 0.8rem; text-align: center;">
-  Branches: <code>maria/QA-17147-port-security-tests</code> (ios-client) | <code>maria/QA-17148-port-security-tests</code> (android, Draft PR #13181) | Refreshed 2026-07-20
+  Branches: <code>maria/QA-17147-port-security-tests</code> (ios-client, PR #14285 open) | <code>maria/QA-17148-port-security-tests</code> (android, PR #13181 merged 2026-07-30) | Refreshed 2026-07-31
 </p>
 
 </div>
