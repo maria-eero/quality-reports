@@ -457,29 +457,6 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
   That's less than one sprint for one QAE — and the merged Android implementation (PR #13181) proves the pattern works, running in the standard unit suite on every PR.
 </div>
 
-<!-- The Ask -->
-<h2>The Ask</h2>
-
-<div class="grid grid-2">
-  <div class="card" style="border-color: var(--green);">
-    <h3 style="color: var(--green);">What We Need</h3>
-    <ul style="font-size: 0.9rem; margin-top: 12px;">
-      <li>Review and land iOS PR #14285 (<code>maria/QA-17147-port-security-tests</code>) — 12 contract + 3 integration tests, in review now</li>
-      <li>1 QAE sprint to replicate the pattern for the top 5 bug-causing interfaces (Speedtest overrides, MACSec state sync, Retrograde/LTE pipeline, iOS↔Android setup parity, Scala Cloud enum contracts)</li>
-      <li>A weekly CI job to refresh fixtures from staging (drift detection)</li>
-    </ul>
-  </div>
-  <div class="card">
-    <h3>What We Don't Need</h3>
-    <ul style="font-size: 0.9rem; margin-top: 12px;">
-      <li>No Pact broker or new infrastructure</li>
-      <li>No backend team changes or buy-in</li>
-      <li>No new library dependencies</li>
-      <li>No CI pipeline modifications — the tests run in the unit suite that already gates every PR</li>
-    </ul>
-  </div>
-</div>
-
 <p style="margin-top: 40px; color: var(--muted); font-size: 0.8rem; text-align: center;">
   Branches: <code>maria/QA-17147-port-security-tests</code> (ios-client, PR #14285 open) | <code>maria/QA-17148-port-security-tests</code> (android, PR #13181 merged 2026-07-30) | Refreshed 2026-07-31
 </p>
