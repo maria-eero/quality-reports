@@ -10,7 +10,7 @@
 
 In the last ~3 weeks (2026-06-27 → 2026-07-20), CORE filed **167 bugs**: **21 P0 blockers**, **32 P1 criticals**, **55 P2 majors**, **56 P3 minors**, and 3 P4s. The June proposal is now backed by a second month of data showing the same failure patterns — API contract violations, cross-service state drift, and iOS/Android parity gaps — this time including two new customer-facing sign-up outages and a MACSec toggle regression that reintroduces the exact class of bug the Port Security tests were designed to prevent.
 
-This document refreshes the June evidence with July's bugs, and the design it proposed is now shipping: the contract + integration test approach I designed for MACSec Port Security is **merged on Android** (`maria/QA-17148`, PR #13181, 2026-07-30) and **in review on iOS** (`maria/QA-17147`, PR #14285). The design decision that matters: the tests live in the standard unit suite and run on every PR — no opt-in job, no diff-scoped selection, no new dependencies. An earlier iteration gated them behind an opt-in `test:contract` job; after discussing it with an Android engineer we dropped that in favor of unit scope, since these tests are fast, deterministic, and dependency-free and there's no reason to treat them differently from any other unit test. Concrete asks are at the end.
+This document refreshes the June evidence with July's bugs, and the design it proposed is now shipping: the contract + integration test approach I designed for MACSec Port Security is **merged on both platforms** — Android (`maria/QA-17148`, PR #13181, 2026-07-30) and iOS (`maria/QA-17147`, PR #14285, 2026-08-03). The design decision that matters: the tests live in the standard unit suite and run on every PR — no opt-in job, no diff-scoped selection, no new dependencies. An earlier iteration gated them behind an opt-in `test:contract` job; after discussing it with an Android engineer we dropped that in favor of unit scope, since these tests are fast, deterministic, and dependency-free and there's no reason to treat them differently from any other unit test. Concrete asks are at the end.
 
 ---
 
@@ -113,7 +113,7 @@ The Android implementation is **merged** (PR #13181, 2026-07-30):
 - 3 real INT-001..003 integration tests inline in `PortDetailViewModelTest.kt`
 - Lives in the standard unit source set (`app/src/test/`) and runs in the existing per-PR unit job — no separate CI job, label, or selection script
 
-The iOS implementation is **open in review** (PR #14285): 12 `@Test` scenarios (8 CT + 4 malformed) plus 3 real INT-001..003 integration tests in `PortDetailsTests.swift`, wired against the real SUT. Landing it is the first ask.
+The iOS implementation is **merged** (PR #14285, 2026-08-03): 12 `@Test` scenarios (8 CT + 4 malformed) plus 3 real INT-001..003 integration tests in `PortDetailsTests.swift`, wired against the real SUT. Both platforms' Port Security tests now gate every PR in the standard unit suite.
 
 ### Phase 2: Contract Tests (2-4 weeks)
 
@@ -150,13 +150,13 @@ The iOS implementation is **open in review** (PR #14285): 12 `@Test` scenarios (
 | P0/P1 bugs from cross-service failures | 13 of 53 in the last 3 weeks (~24%) | Reduced to near-zero for covered interfaces |
 | Time-to-detect | Days to months (Sentry alerts, customer complaints, dogfood escalation) | Minutes (CI failure) |
 | Dev cost of late-detected bugs | High (debugging prod, hotfixes, dogfood rollbacks) | Low (failing test shows exact contract) |
-| Reference implementation | Android merged (12 CT + 3 INT); iOS in review (12 CT + 3 INT). 0 new dependencies, runs in the unit suite | — |
+| Reference implementation | Android merged (12 CT + 3 INT); iOS merged (12 CT + 3 INT). 0 new dependencies, runs in the unit suite | — |
 
 ---
 
 ## Next Steps
 
-1. **Land iOS PR #14285** (`maria/QA-17147-port-security-tests`) — 12 CT + 3 real INT tests, in review now (Android #13181 already merged 2026-07-30)
+1. ✅ **Both Port Security PRs merged** — Android #13181 (2026-07-30) and iOS #14285 (`maria/QA-17147-port-security-tests`, 2026-08-03), 12 CT + 3 real INT tests each, now gating every PR
 2. **1 QAE sprint** — replicate the pattern for the top-5 interfaces above (fixtures + assertions), same golden-fixture approach as the reference implementation
 4. **Weekly fixture refresh** — small CI job that re-records fixtures from staging, alerts on schema drift
 5. **Review checkpoint** — at end of sprint, compare new PR-time contract-test failures against Sentry events on the same interfaces

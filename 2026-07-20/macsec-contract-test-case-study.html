@@ -110,14 +110,14 @@
 <a class="back-link" href="contract-integration-test-gap-analysis.html">&larr; Back to Gap Analysis</a>
 
 <h1>MACsec Port Security — Contract Test Case Study</h1>
-<p class="subtitle">A working implementation of contract + integration tests, built for iOS and Android. They live in the existing unit-test suite and run on every PR — no Pact, no new infrastructure, no CI wiring. Refreshed 2026-07-31.</p>
+<p class="subtitle">A working implementation of contract + integration tests, built for iOS and Android. They live in the existing unit-test suite and run on every PR — no Pact, no new infrastructure, no CI wiring. Refreshed 2026-08-03.</p>
 
 <!-- KPIs -->
 <div class="grid grid-4">
   <div class="card">
     <h3>Contract Tests</h3>
     <div class="stat stat-green">12 · 12</div>
-    <div class="stat-sub">Android (12 @Test, CT-004/005 omitted) · iOS (12 @Test — 8 CT + 4 CT-M)</div>
+    <div class="stat-sub">Android (12 @Test, CT-004/005 omitted) · iOS (12 @Test — 8 CT + 4 CT-M), both merged</div>
   </div>
   <div class="card">
     <h3>Integration Tests</h3>
@@ -137,10 +137,10 @@
 </div>
 
 <div class="callout-green callout">
-  <strong>This is real, landing code — Android is merged; iOS is in review.</strong>
+  <strong>This is real, landed code — both platforms are merged.</strong>
   The pattern described in the gap analysis proposal has been implemented for Port Security on both platforms,
   and the tests live in the standard unit-test suite so they run on every PR with no special CI wiring.
-  Android <strong>PR #13181 merged 2026-07-30</strong> (eero-inc/android). iOS <strong>PR #14285 is open and in review</strong>
+  Android <strong>PR #13181 merged 2026-07-30</strong> (eero-inc/android). iOS <strong>PR #14285 merged 2026-08-03</strong>
   (eero-inc/ios-client) with 12 contract + 3 real integration tests. This document presents the pattern as the
   template for expanding coverage to the target interfaces in the July 2026 gap analysis.
 </div>
@@ -151,11 +151,11 @@
 <div class="grid grid-2">
   <div class="card">
     <h3>iOS (Swift Testing)</h3>
-    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> — <span style="color: var(--green);">PR #14285 open, in review</span></p>
+    <p style="font-size: 0.9rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> — <span style="color: var(--green);">PR #14285 merged 2026-08-03</span></p>
     <ul style="font-size: 0.85rem; margin-top: 12px;">
-      <li><strong>8 scenario tests</strong> (CT-001..003, CT-006, CT-007, CT-011, CT-013, CT-014) — the documented states plus toggle-response and network-poll envelopes, now wired against the real SUT</li>
+      <li><strong>8 scenario tests</strong> (CT-001..003, CT-006, CT-007, CT-011, CT-013, CT-014) — the documented states plus toggle-response and network-poll envelopes, wired against the real SUT</li>
       <li><strong>4 malformed-payload tests</strong> (CT-M1 → CT-M4) — invalid JSON, wrong types, missing fields, unknown enums</li>
-      <li><strong>3 real integration tests</strong> (INT-001..003) in <code>Eero/EeroDogfoodTests/Components/Port Details/PortDetailsTests.swift</code> — polling-driven state transitions asserted on <code>PortDetailViewModel</code>, no longer TODO stubs</li>
+      <li><strong>3 real integration tests</strong> (INT-001..003) in <code>Eero/EeroDogfoodTests/Components/Port Details/PortDetailsTests.swift</code> — polling-driven state transitions asserted on the <code>PortDetails</code> reducer, no longer TODO stubs</li>
       <li>SUT wiring landed in the PR: <code>port_security</code> decoding on <code>Connections.swift</code> plus a <code>DebugPortSecurityView</code></li>
       <li>Uses: <code>EeroAPI.jsonDecoder</code>, Swift Testing <code>@Test</code>, existing test bundle</li>
     </ul>
@@ -223,7 +223,7 @@ app/src/test/resources/fixtures/port_security/scenarios.json
 
 <pre>mise run test unitTests  # or the EeroNetworkingTests scheme in Xcode</pre>
 
-<p>No CI-config change needed — the tests run as part of the existing PR test job on <code>ios-client</code>. This is now open as PR #14285; once it merges, the tests execute on every PR that touches the covered targets.</p>
+<p>No CI-config change needed — the tests run as part of the existing PR test job on <code>ios-client</code>. Merged as PR #14285 on 2026-08-03; the tests now execute on every PR via the <code>EeroUnitTests</code> job in <code>.github/workflows/pr-checks-eero.yml</code>.</p>
 
 <h3>What a failure looks like</h3>
 
@@ -408,12 +408,12 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
 
 <div class="grid grid-2">
   <div class="card">
-    <h3>iOS <span class="badge badge-yellow">PR #14285 open</span></h3>
+    <h3>iOS <span class="badge badge-green">PR #14285 merged</span></h3>
     <ul style="font-size: 0.85rem; margin-top: 8px;">
       <li>Contract tests in <code>Eero/EeroNetworking/Tests/Port Security Tests/</code>; integration tests in <code>Eero/EeroDogfoodTests/Components/Port Details/PortDetailsTests.swift</code></li>
       <li>Run as part of the existing <code>EeroNetworkingTests</code> / <code>EeroDogfoodTests</code> targets</li>
       <li>Executes on every PR via <code>mise run test unitTests</code></li>
-      <li><strong>Zero CI config changes</strong> — merges with the standard test job</li>
+      <li><strong>Zero CI config changes</strong> — merged 2026-08-03 and now gating every PR via the standard test job</li>
     </ul>
   </div>
   <div class="card">
@@ -454,11 +454,11 @@ fun `CT-007 security on, non-eero detected parses as BLOCKED with data disabled`
 
 <div class="callout">
   <strong>Total estimated effort:</strong> ~25 hours of contract + integration test writing to cover the 12 target interfaces above.
-  That's less than one sprint for one QAE — and the merged Android implementation (PR #13181) proves the pattern works, running in the standard unit suite on every PR.
+  That's less than one sprint for one QAE — and the merged Android and iOS implementations (PRs #13181 and #14285) prove the pattern works, running in the standard unit suite on every PR.
 </div>
 
 <p style="margin-top: 40px; color: var(--muted); font-size: 0.8rem; text-align: center;">
-  Branches: <code>maria/QA-17147-port-security-tests</code> (ios-client, PR #14285 open) | <code>maria/QA-17148-port-security-tests</code> (android, PR #13181 merged 2026-07-30) | Refreshed 2026-07-31
+  Branches: <code>maria/QA-17147-port-security-tests</code> (ios-client, PR #14285 merged 2026-08-03) | <code>maria/QA-17148-port-security-tests</code> (android, PR #13181 merged 2026-07-30) | Refreshed 2026-08-03
 </p>
 
 </div>

@@ -175,7 +175,7 @@
   <strong>Key insight (July snapshot):</strong> Every P0 in this window with a cross-service root cause maps to one of the three
   categories below — throttle enforcement, Retrograde registration, Thread capability, MACSec toggle, static-IP replacement, OTA outcomes.
   Two chronic contract-violation bugs (CORE-31728, CORE-31862) alone have generated <strong>84,000+ Sentry events</strong> since 2024
-  and 2026 respectively, and remain unfixed. The MACSec Port Security tests — merged on Android, in review on iOS — implement the pattern that catches this class of failure — see the
+  and 2026 respectively, and remain unfixed. The MACSec Port Security tests — now merged on both Android and iOS — implement the pattern that catches this class of failure — see the
   Design &amp; Implementation tab.
 </div>
 
@@ -378,8 +378,8 @@
 
 <div class="callout" style="border-left-color: var(--green); background: rgba(34,197,94,0.08);">
   <strong style="color: var(--green);">Status update since the June audit:</strong>
-  <strong>Contract tests are now merged on Android</strong> — PR #13181 (merged 2026-07-30) adds 12 CT-* scenarios plus 3 real integration tests,
-  running in the standard unit suite on every PR. iOS is close behind: PR #14285 is open and in review with 12 contract + 3 real integration tests on branch <code>maria/QA-17147-port-security-tests</code>.
+  <strong>Contract tests are now merged on both platforms</strong> — Android PR #13181 (merged 2026-07-30) and iOS PR #14285 (merged 2026-08-03) each add 12 CT-* scenarios plus 3 real integration tests,
+  running in the standard unit suite on every PR. iOS landed on branch <code>maria/QA-17147-port-security-tests</code>.
   The Cloud picture is unchanged from June — no visible contract tests in the Scala monolith (private repo, not auditable from here).
   The counts below reflect the June audit; the July refresh focused on new bug evidence, not a re-audit.
 </div>
@@ -570,7 +570,7 @@
   <strong style="color: var(--green);">The design, shipped.</strong>
   This is the contract + integration test approach I designed and built for MACSec Port Security across both platforms. The design principle is
   deliberate: the tests live in the standard unit suite and run on every PR — no Pact, no new dependencies, no separate CI job — so they gate merges
-  by default and cost nothing to maintain. <strong>Android PR #13181 merged 2026-07-30; iOS PR #14285 is open and in review.</strong> This tab walks through the
+  by default and cost nothing to maintain. <strong>Android PR #13181 merged 2026-07-30; iOS PR #14285 merged 2026-08-03.</strong> This tab walks through the
   design decisions and how the same pattern scales to the interfaces in the gap analysis.
   <br><br>
   <a href="macsec-contract-test-case-study.html" style="color: var(--green); font-weight: 600;">&#x2192; See the MACsec Case Study</a> — full implementation walkthrough.
@@ -584,8 +584,8 @@
   </div>
   <div class="card">
     <h3>iOS</h3>
-    <div class="stat" style="font-size: 1.4rem; color: var(--green);">PR #14285 open</div>
-    <div class="stat-sub">12 CT + 3 real INT tests, in review</div>
+    <div class="stat stat-green" style="font-size: 1.4rem;">PR #14285 merged</div>
+    <div class="stat-sub">12 CT + 3 real INT tests, in the unit suite (2026-08-03)</div>
   </div>
   <div class="card">
     <h3>Tooling</h3>
@@ -614,14 +614,14 @@
     </ul>
   </div>
   <div class="card" style="border-color: rgba(34,197,94,0.4);">
-    <h3 style="color: var(--green);">iOS — PR #14285 open</h3>
-    <p style="font-size: 0.85rem; margin-top: 8px;">Branch: <code>maria/QA-17147-port-security-tests</code> · in review</p>
+    <h3 style="color: var(--green);">iOS — PR #14285 merged</h3>
+    <p style="font-size: 0.85rem; margin-top: 8px;">Merged 2026-08-03 · branch <code>maria/QA-17147-port-security-tests</code></p>
     <ul style="list-style: none; padding: 0; margin-top: 12px; font-size: 0.9rem;">
       <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 12 <code>@Test</code> methods in <code>PortSecurityContractTests.swift</code> (8 CT + 4 CT-M), wired against the real SUT</li>
       <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> 3 real integration tests (INT-001..003) in <code>PortDetailsTests.swift</code> — no longer TODO stubs</li>
       <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> SUT wiring landed in the PR — <code>port_security</code> decoding on <code>Connections.swift</code></li>
       <li style="padding: 6px 0; border-bottom: 1px solid var(--border);"><span style="color:var(--green);">&#x2713;</span> Runs in the existing test targets — zero CI config changes</li>
-      <li style="padding: 6px 0;"><strong>Ask:</strong> review and land the PR</li>
+      <li style="padding: 6px 0;"><strong>Now gating every iOS PR by default.</strong></li>
     </ul>
   </div>
 </div>
@@ -634,7 +634,7 @@
 <tr><th>Week</th><th>Deliverable</th><th>Owner</th><th>Done When</th></tr>
 </thead>
 <tbody>
-<tr><td><strong>0</strong></td><td>Land iOS PR #14285 (Android #13181 already merged 2026-07-30)</td><td>QAE (Maria) + iOS reviewers</td><td>Both platforms' Port Security tests merged</td></tr>
+<tr><td><strong>0</strong></td><td><span style="color:var(--green);">&#x2713;</span> Both Port Security PRs merged — Android #13181 (2026-07-30), iOS #14285 (2026-08-03)</td><td>QAE (Maria) + iOS reviewers</td><td>Both platforms' Port Security tests merged</td></tr>
 <tr><td><strong>1</strong></td><td>Extend to Speedtest overrides API contract (CORE-31676, 32133, 32221) — schema + 409 handling + provider routing</td><td>QAE (Maria)</td><td>Contract tests fail on missing <code>organizations[].name</code>, on 409 mishandling, on wrong-provider write</td></tr>
 <tr><td><strong>2</strong></td><td>Extend to Retrograde / LTE-backup integration tests (CORE-31999, 32132, 32049)</td><td>QAE (Maria)</td><td>Integration tests validate RG registration → backup eligibility, throttle ACK → wmob0 stays down, <code>ring_settings.lte_state</code> freshness</td></tr>
 <tr><td><strong>3</strong></td><td>Extend to iOS ↔ Android setup parity (CORE-32109, 31876, 31750) — shared setup replacement + placement-test predicate</td><td>QAE (Maria)</td><td>Same acceptance test runs on both platforms against same eeroOS build</td></tr>
@@ -713,7 +713,7 @@
 <tr><td>Sentry events for covered interfaces</td><td>375K+ cumulative</td><td>Growth rate → 0 for first 3 interfaces</td><td>Growth rate → 0 for all Phase 1 interfaces</td></tr>
 <tr><td>Contract-preventable P0/P1 bugs filed</td><td>~4-5/week</td><td>No new bugs of covered types</td><td>50% reduction in this category overall</td></tr>
 <tr><td>Time-to-detect contract violations</td><td>Days to months (Sentry alert or QA find)</td><td>Minutes (CI failure on PR)</td><td>Minutes (CI failure on PR)</td></tr>
-<tr><td>Contract test count</td><td>15 merged on Android (Port Security); 15 in review on iOS</td><td>Both platforms merged + 3 more interfaces (CORE-31269, 31436, 31564)</td><td>10+ interfaces covering all Phase 1 categories</td></tr>
+<tr><td>Contract test count</td><td>15 merged on Android + 15 merged on iOS (Port Security)</td><td>Both platforms merged + 3 more interfaces (CORE-31269, 31436, 31564)</td><td>10+ interfaces covering all Phase 1 categories</td></tr>
 </tbody>
 </table>
 </div>
