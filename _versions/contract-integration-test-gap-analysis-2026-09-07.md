@@ -16,7 +16,7 @@ The headline finding is not the share. It is that **the rate is flat and the int
 - Categorized bugs held at **8.0/week** (August) versus **7.0/week** (July) — the pattern is structural, not a spike.
 - The interface this proposal named as **target #1 in July — Speedtest provider overrides — produced 7 more bugs in this window**, including a P1 Insight crash and two API-validation defects that accept and persist bad data.
 - **Multi-WAN / WAN links produced 19 bugs, 9 of them P0.** It has displaced Speedtest overrides as the highest-volume boundary in CORE and is the single strongest candidate for the next reference implementation.
-- **CORE-33235 is a MACsec Port Security recurrence** — on the exact interface the shipped contract tests cover. It escaped them, and *why* is the most useful thing in this document: cloud serves `port_security` in two representations that disagree, and no test anywhere asserted they should agree. **The cloud fix has since merged ([cloud#29524](https://github.com/eero-inc/cloud/pull/29524)), on the producer side and touching no client code — which is the case this document argues, closed by the code.** See [Where the shipped tests hit their ceiling](#where-the-shipped-tests-hit-their-ceiling).
+- **CORE-33235 is a MACsec Port Security recurrence** — on the exact interface the shipped contract tests cover. It escaped them, and *why* is the most useful thing in this document: cloud serves `port_security` in two representations that disagree, and no test anywhere asserted they should agree. See [Where the shipped tests hit their ceiling](#where-the-shipped-tests-hit-their-ceiling).
 
 The reference implementation shipped: Port Security contract + integration tests are **merged on both platforms** — Android (PR #13181, 2026-07-30, commit `dd9f38f4`) and iOS (PR #14285, 2026-08-03, commit `74221e2c`). They run in the standard unit suite on every PR, with zero new dependencies.
 
@@ -97,7 +97,7 @@ iOS, Android, Insight, and Web disagree on how to interpret the same data.
 | [CORE-32666](https://eeroinc.atlassian.net/browse/CORE-32666) | P1 | A wired leaf on physical Port 1 is reported as "Port 2" by Android; iOS correctly shows Port 1. Same eeroOS 7.17.0-12695. **Recurrence of CORE-31750** from the July snapshot | Contract test: `connected_to.port` semantics are fixed in the API spec and asserted identically by iOS and Android |
 | [CORE-32595](https://eeroinc.atlassian.net/browse/CORE-32595) | P1 | The Data Pack "running low" alert fires at 80% on both iOS and Android where the spec is ≥90% — both clients hardcode the same wrong threshold | Contract test: the alert threshold is a single shared constant sourced from the API, not a per-client literal |
 | [CORE-33165](https://eeroinc.atlassian.net/browse/CORE-33165) | P1 | Restarting one leaf makes **all** eeros show "Restarting" on the Android home screen; iOS correctly scopes the status to the restarted node | Contract test: per-node status is keyed by node id on both platforms — a status event never fans out to siblings |
-| [CORE-33235](https://eeroinc.atlassian.net/browse/CORE-33235) | P2 | **MACsec recurrence — and a two-representation contract split.** The app shows Port Security enabled on the Novo WAN port (`eth1`). Cloud serves port security in **two independent representations**: `state_data`/`/eeros` is faithful (`macSecStatus=None`, `isWanPort=True`), while `/connections` sets `enabled` straight from the persisted `NodeEthernetPortSetting.portSecurityOn` DB flag with **no WAN guard, no `capable` guard and no live-status gating** — and never clears it. The port rows read the second one. Reproduces on Novo-Crane and Novo-Snowbird, not Hornbill-Crane, because Novo's `eth1` is both the WAN port and PORT_SECURITY-capable. **Fix merged cloud-side — [cloud#29524](https://github.com/eero-inc/cloud/pull/29524), `isMACSecCapable` is now WAN-aware; `enabled` still ungated by design** | Contract test: the two representations of `port_security` agree for the same port, and `enabled` in the connections view is gated on `capable`, live status, and not-WAN. See the ceiling section below |
+| [CORE-33235](https://eeroinc.atlassian.net/browse/CORE-33235) | P2 | **MACsec recurrence — and a two-representation contract split.** The app shows Port Security enabled on the Novo WAN port (`eth1`). Cloud serves port security in **two independent representations**: `state_data`/`/eeros` is faithful (`macSecStatus=None`, `isWanPort=True`), while `/connections` sets `enabled` straight from the persisted `NodeEthernetPortSetting.portSecurityOn` DB flag with **no WAN guard, no `capable` guard and no live-status gating** — and never clears it. The port rows read the second one. Reproduces on Novo-Crane and Novo-Snowbird, not Hornbill-Crane, because Novo's `eth1` is both the WAN port and PORT_SECURITY-capable. **Primary fix is cloud-side** | Contract test: the two representations of `port_security` agree for the same port, and `enabled` in the connections view is gated on `capable`, live status, and not-WAN. See the ceiling section below |
 | [CORE-32446](https://eeroinc.atlassian.net/browse/CORE-32446) | P2 | The iOS IP Addresses info popup omits the IPv6 summary section that Android renders inline | Contract test: info-popup section set comes from one shared content map |
 | [CORE-32517](https://eeroinc.atlassian.net/browse/CORE-32517) | P3 | On first network creation Android presets the timezone to Pacific Standard Time while iOS shows "No timezone set" — divergent defaults for a value time-dependent features read | Contract test: the new-network default timezone is one shared value; "unset" is either valid on both platforms or neither |
 | [CORE-32470](https://eeroinc.atlassian.net/browse/CORE-32470) | P3 | With eero Plus enabled, the Internet page shows a "Mobile backup" row on AOS and omits it on iOS | Contract test: the Connections row set is one shared list keyed by entitlement |
@@ -181,7 +181,7 @@ This is the most important section for the cloud handoff, and it is an argument 
 
 **CORE-33235** landed against MACsec Port Security — the interface with 12 contract tests and 3 integration tests merged on each platform. The tests passed. The bug shipped.
 
-The mechanism matters, and it is not what the ticket first looked like. The reporter's three-source snapshot showed node and cloud `state_data` both correct and concluded the defect was in the app. A code-level root-cause investigation found something more interesting:
+The mechanism matters, and it is not what the ticket first looked like. The reporter's three-source snapshot showed node and cloud `state_data` both correct and concluded the defect was in the app. A code-level root-cause investigation (writeup available from Maria) found something more interesting:
 
 **Cloud serves port security in two independent representations, and the port UI reads the wrong one.**
 
@@ -193,20 +193,7 @@ The mechanism matters, and it is not what the ticket first looked like. The repo
 | Who reads it | Home MACsec banner only | **the port rows / port detail** — the buggy screen |
 | Result on the WAN port | correct: `None` | **stale `enabled=true` on `eth1`** |
 
-The flag is set by `enablePortSecurity` and `propagateToPeerOnEnable`, both of which gate only on `isMACSecCapable`, neither of which excludes a WAN port, and neither of which clears the flag when a port later becomes WAN. Novo reproduces and Hornbill does not because **both of Novo's ports advertise PORT_SECURITY capability**, so its WAN port can carry a stale `enabled`. **The primary fix was cloud-side.**
-
-### The cloud fix landed — and it confirms the diagnosis
-
-The cloud-side fix is **merged**: [eero-inc/cloud#29524](https://github.com/eero-inc/cloud/pull/29524), *"Treat WAN ports as non-MACsec-capable"*, merged 2026-09-04. This document's read of the bug was written before that fix and is corroborated by it: the change lands entirely in cloud, on the connections view, and touches no client code.
-
-What it changed:
-
-- `PortSecurityRules.isMACSecCapable` takes an `isWanPort` argument and returns `capable && !isWanPort` — a WAN port is never MACsec-capable, because there is no eero peer on the uplink to exchange keys with
-- A new `TopologyReportUtils.isWanInterface` folds together the active-uplink flag (`EthernetStatus.isWanPort`) and the node's own WAN report, so **inactive and secondary WAN links are covered too** — wider than the reported repro
-- Threaded through `PortSecurityView`, `InterfaceView`, `EeroConnectionsRules` and `PortSecurityStatusController`, which now rejects an enable attempt on a WAN port with `EeroOrPortNotCapable`
-- Four specs extended: `PortSecurityRulesSpec`, `PortSecurityViewSpec`, `InterfaceViewSpec`, `TopologyReportUtilsSpec`
-
-**The important detail for this document: `enabled` was deliberately left alone.** The fix gates `capable` and suppresses `status`; `enabled` is still `nodeEthernetPortSetting.exists(_.portSecurityOn.value)`, ungated. The new tests assert that explicitly — `PortSecurityView(capable = false, enabled = true, status = None)`. So the payload no longer *misleads* a client that reads `capable`, but it still ships a value that contradicts the rest of the object. The cross-field invariant below is therefore **validated by the fix, not retired by it**.
+The flag is set by `enablePortSecurity` and `propagateToPeerOnEnable`, both of which gate only on `isMACSecCapable`, neither of which excludes a WAN port, and neither of which clears the flag when a port later becomes WAN. Novo reproduces and Hornbill does not because **both of Novo's ports advertise PORT_SECURITY capability**, so its WAN port can carry a stale `enabled`. **The primary fix is cloud-side.**
 
 Why the shipped tests missed it:
 
@@ -220,24 +207,9 @@ Three honest conclusions:
 
 1. **A fixture test cannot catch a producer-side staleness bug, by construction.** The fixture *is* the assertion. If the recorded payload carries `enabled=true`, every test built on it agrees. There is no assertion a client-side test could have made here without already knowing the answer.
 2. **The one client-side test that would have helped is a cross-field invariant, not a decode test.** Assert that `enabled` is never true where `capable` is false, where live `status` is `DISABLED`, or on a WAN port — a contradiction check inside a single payload, which does not depend on knowing which value is right. That is cheap and should be added to both platforms.
-3. **This is exactly where provider verification earns its cost.** Two cloud representations of the same fact disagreed, and nothing anywhere asserted they should agree. A provider-verified contract stating "`/connections.port_security.enabled` is true only for a port that is `capable`, not WAN, and reporting live MACsec status" would have failed in **cloud** CI — which is where the fix did land.
+3. **This is exactly where provider verification earns its cost.** Two cloud representations of the same fact disagreed, and nothing anywhere asserted they should agree. A provider-verified contract stating "`/connections.port_security.enabled` is true only for a port that is `capable`, not WAN, and reporting live MACsec status" would have failed in **cloud** CI — which is also where the fix has to land.
 
-That third point is the bridge to the companion guide, and CORE-33235 is the strongest argument in this document for it: the bug presented as a client rendering defect, was reported as a client defect, and was in fact a producer emitting two contradictory answers to the same question.
-
-### One client-side gap the cloud fix does not close
-
-Because #29524 fixes the symptom through `capable`, whether a given screen is fixed now depends on whether that screen reads `capable`. Reading the two clients against the post-fix payload — `capable=false, enabled=true, status=null` on a WAN port:
-
-| Surface | Gate | Fixed by #29524? |
-|---|---|---|
-| Android port list icon — `ConnectedDevicesViewModel` | `capable == true && enabled == true` | ✅ Yes |
-| Android port detail toggle | hidden when not `capable` | ✅ Yes |
-| iOS port detail toggle + shield — `PortDetails` | `isPortSecurityFeatureEnabled && portSecurity?.capable == true` | ✅ Yes |
-| iOS port list icon — `ConnectedDevicesViewDataMapper` | `isMacSecEnabled && portSecurity?.enabled == true` — **no `capable` clause** | ❌ **No** |
-
-The iOS connected-devices port list still derives its security icon from `enabled` alone, so it will keep rendering a MACsec icon on a WAN port that the payload now explicitly reports as not capable. Android's equivalent already gates on both fields.
-
-This is the same defect class as the 17 parity bugs in this window — **two platforms reading one payload by different rules** — and it is exactly what a cross-field contradiction test catches on the client and what a parity fixture test catches between the platforms. It is the strongest single piece of evidence in this document that the invariant in point 2 is worth the hour it costs.
+That third point is the bridge to the companion guide, and CORE-33235 is the strongest argument in this document for it: the bug presented as a client rendering defect, was reported as a client defect, and is actually a producer emitting two contradictory answers to the same question.
 
 ---
 
@@ -250,7 +222,7 @@ Merged on both platforms, running in the standard unit suite on every PR, zero n
 - **Android** — PR #13181, merged 2026-07-30, commit `dd9f38f4`. 12 `CT-*` tests in `app/src/test/kotlin/com/eero/android/contract/portsecurity/PortSecurityContractTest.kt` plus fixtures in `PortSecurityFixtures.kt`; 3 `INT-001..003` tests in `PortDetailViewModelTest.kt`
 - **iOS** — PR #14285, merged 2026-08-03, commit `74221e2c`. 12 `@Test` scenarios in `Eero/EeroNetworking/Tests/Port Security Tests/PortSecurityContractTests.swift`; 3 `INT-001..003` tests in `PortDetailsTests.swift`
 
-**Follow-up from CORE-33235:** add the cross-field contradiction test described above — `enabled` is never true where `capable` is false, where live `status` is `DISABLED`, or on a WAN port. The reference implementation is a good template and an incomplete one. The cloud fix ([cloud#29524](https://github.com/eero-inc/cloud/pull/29524)) makes this *more* worth doing, not less: it fixed the symptom via `capable` and left `enabled` ungated, so the payload still carries a self-contradictory object — and the iOS port list, which reads `enabled` without `capable`, still renders it.
+**Follow-up from CORE-33235:** add the cross-field contradiction test described above — `enabled` is never true where `capable` is false, where live `status` is `DISABLED`, or on a WAN port. The reference implementation is a good template and an incomplete one. Note that this only makes the client refuse to render a bad flag; **the flag itself is a cloud-side fix** and is tracked separately.
 
 ### Phase 2: Extend to the top interfaces (2–4 weeks)
 
@@ -284,14 +256,14 @@ Reprioritized by this window's P0/P1 volume:
 | Chronic defects | One 6-year-old fleet-wide policy revert; one 2-year-old pause bug; a same-window sync recurrence | Caught at PR time |
 | Time-to-detect | Days to years — Sentry, customer escalation, support cases, factory ASN checks | Minutes (CI failure) |
 | Cost of the reference implementation | 12 CT + 3 INT per platform, 0 new dependencies, runs in the existing unit job | — |
-| Known limit | Fixture tests cannot catch producer-side staleness by construction — CORE-33235, whose fix landed in cloud ([#29524](https://github.com/eero-inc/cloud/pull/29524)), not on the client | Provider verification closes this specific gap; a cross-field contradiction check narrows it on the client |
+| Known limit | Fixture tests cannot catch producer-side staleness by construction — CORE-33235 | Provider verification closes this specific gap; a cross-field contradiction check narrows it on the client |
 
 ---
 
 ## Next Steps
 
 1. ✅ **Reference implementation merged** — Android #13181 and iOS #14285, gating every PR
-2. ✅ **CORE-33235 fixed cloud-side** — [cloud#29524](https://github.com/eero-inc/cloud/pull/29524), merged 2026-09-04, makes `isMACSecCapable` WAN-aware. Still open: **add the cross-field contradiction test** to both platforms, and **gate the iOS port-list security icon on `capable`** — it reads `enabled` alone and is not covered by the cloud fix
+2. **Add the CORE-33235 cross-field contradiction test** to both platforms, and **route the cloud-side fix** for the ungated `portSecurityOn` flag — the client test stops the symptom, the cloud fix removes the cause
 3. **Pick Multi-WAN as the next reference interface** — 9 P0s and active development make it the highest-value target
 4. **Hand the cloud side to Cloud Engineering** — the [implementation guide](./contract-integration-testing-implementation-guide.html) documents both approaches, verified against `eero-inc/cloud` at Scala 2.13.18 / sbt 1.12.1 / Play 2.9.10
 5. **Review checkpoint at end of sprint** — compare new PR-time contract-test failures against Sentry events and new CORE tickets on the same interfaces

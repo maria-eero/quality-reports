@@ -131,6 +131,9 @@ mobile</a>
 <li><a href="#what-shipped-and-what-it-missed"
 id="toc-what-shipped-and-what-it-missed">What shipped, and what it
 missed</a></li>
+<li><a href="#how-it-was-fixed-and-what-the-fix-proves"
+id="toc-how-it-was-fixed-and-what-the-fix-proves">How it was fixed, and
+what the fix proves</a></li>
 </ul></li>
 <li><a href="#3-the-two-approaches-side-by-side"
 id="toc-3-the-two-approaches-side-by-side">3. The two approaches, side
@@ -352,7 +355,10 @@ missed</h3>
 <p><strong>CORE-33235</strong> landed against MACsec Port Security — the
 interface with 12 contract tests on each platform. The tests passed. The
 bug shipped. <strong>This is the single most relevant ticket in this
-document for Cloud Engineering, because the fix is yours.</strong></p>
+document for Cloud Engineering, because the fix was yours — and it has
+already merged.</strong> It is worth reading as the worked example for
+everything that follows: reported as a client bug, diagnosed as a
+producer bug, fixed in cloud with no client change.</p>
 <p>It was reported as an app bug. The reporter took a simultaneous
 three-source snapshot, found the node bookshelf and cloud
 <code>state_data</code> both correct for the WAN port, and reasonably
@@ -440,13 +446,56 @@ nothing asserted they should agree.</strong> That is a provider-side
 contract gap, and it is the case for Approach B existing at all.</li>
 </ol>
 <p>This is why the guide is not simply "do what mobile did."</p>
-<blockquote>
-<p><strong>Live ticket.</strong> CORE-33235 is under active
-investigation, with a full root-cause writeup and a live repro on stage
-network 1304594. The code paths above are quoted from that investigation
-rather than independently re-derived here — <strong>ask Maria for the
-writeup before acting on them.</strong></p>
-</blockquote>
+<h3 id="how-it-was-fixed-and-what-the-fix-proves">How it was fixed, and
+what the fix proves</h3>
+<p>The cloud-side fix is <strong>merged</strong>: <a
+href="https://github.com/eero-inc/cloud/pull/29524">eero-inc/cloud#29524</a>,
+<em>"Treat WAN ports as non-MACsec-capable"</em>, merged 2026-09-04.
+Full detail — repro, three-source snapshot, timeline and the pcap from
+the Novo↔︎Crane tap — is on <a
+href="https://eeroinc.atlassian.net/browse/CORE-33235">CORE-33235</a>
+and in the PR description.</p>
+<ul>
+<li><code>PortSecurityRules.isMACSecCapable</code> gained an
+<code>isWanPort</code> argument and now returns
+<code>capable &amp;&amp; !isWanPort</code>. A WAN port is never
+MACsec-capable: there is no eero peer on the uplink to exchange keys
+with</li>
+<li>New <code>TopologyReportUtils.isWanInterface</code> unions the
+active-uplink flag (<code>EthernetStatus.isWanPort</code>) with the
+node's own <code>wanReport</code>, so <strong>inactive and secondary WAN
+links are covered</strong> — broader than the reported repro, and the
+right call</li>
+<li>Threaded through <code>PortSecurityView</code>,
+<code>InterfaceView</code>, <code>EeroConnectionsRules</code> and
+<code>PortSecurityStatusController</code>, which now rejects an enable
+on a WAN port with <code>EeroOrPortNotCapable</code></li>
+<li>Four specs extended: <code>PortSecurityRulesSpec</code>,
+<code>PortSecurityViewSpec</code>, <code>InterfaceViewSpec</code>,
+<code>TopologyReportUtilsSpec</code></li>
+</ul>
+<p><strong>Note what the fix did not do, because it matters for
+§4.2.</strong> <code>enabled</code> is untouched — still
+<code>nodeEthernetPortSetting.exists(_.portSecurityOn.value)</code>,
+with no WAN, <code>capable</code> or live-status gate. The new specs
+assert that state directly:
+<code>PortSecurityView(capable = false, enabled = true, status = None)</code>.
+That is a defensible call — <code>enabled</code> records what the
+customer asked for, <code>capable</code> records whether it can hold —
+but it means <strong>the connections view still emits a
+self-contradictory object</strong>, and any consumer that reads
+<code>enabled</code> without reading <code>capable</code> still gets the
+wrong answer. One already does; see §4.2.</p>
+<p>Two things this fix demonstrates for the rest of the guide:</p>
+<ol type="1">
+<li><strong>A client-side test could not have produced it.</strong> The
+diagnosis required reading provider code. A provider-verified contract
+would have failed in cloud CI at the PR that introduced the ungated flag
+— years earlier and in the right team's queue.</li>
+<li><strong>Fixing the symptom in one field does not make the payload
+self-consistent.</strong> That is the case for cross-field invariants
+(§4.2) independent of Pact.</li>
+</ol>
 <hr />
 <h2 id="3-the-two-approaches-side-by-side">3. The two approaches, side
 by side</h2>
@@ -672,14 +721,58 @@ is the WAN port.</p>
 </blockquote>
 <p>The last clause has a wrinkle worth knowing before you write it:
 <code>is_wan_port</code> is <strong>not present in the connections-view
-payload</strong> — it lives only in the network-poll model. So the WAN
-clause either needs cloud to add the field to the connections view (the
-better fix) or has to be asserted at a level where both models are in
-scope.</p>
+payload</strong> — it lives only in the network-poll model. Since <a
+href="https://github.com/eero-inc/cloud/pull/29524">#29524</a>, cloud
+resolves WAN-ness itself and folds it into <code>capable</code>, so a
+client asserting the <code>capable</code> clause now gets the WAN clause
+transitively. Asserting WAN directly still needs cloud to expose the
+field, or a level where both models are in scope.</p>
 <p>Add the <code>capable</code> and <code>status</code> clauses to both
 platforms now; they need nothing from cloud. It is a handful of lines
 and it closes a demonstrated gap in the pattern we are asking other
 teams to adopt.</p>
+<p><strong>And there is a live consumer of the contradiction.</strong>
+Reading both clients against the post-fix payload for a WAN port —
+<code>capable=false, enabled=true, status=null</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Gate</th>
+<th>Correct after #29524?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Android port list icon — <code>ConnectedDevicesViewModel</code></td>
+<td><code>capable == true &amp;&amp; enabled == true</code></td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>Android port detail toggle</td>
+<td>hidden when not <code>capable</code></td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>iOS port detail toggle + shield — <code>PortDetails</code></td>
+<td><code>isPortSecurityFeatureEnabled &amp;&amp; portSecurity?.capable == true</code></td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>iOS port list icon —
+<code>ConnectedDevicesViewDataMapper</code></td>
+<td><code>isMacSecEnabled &amp;&amp; portSecurity?.enabled == true</code>
+— <strong>no <code>capable</code> clause</strong></td>
+<td>❌ <strong>No</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Three of four surfaces read <code>capable</code> and are fixed by the
+cloud change; the iOS connected-devices port list reads
+<code>enabled</code> alone and will keep drawing a MACsec icon on a port
+the payload reports as not capable. Two platforms, one payload, two
+different reading rules — which is both the residual bug and the
+clearest argument for the invariant above.</p>
 <h3
 id="43-the-cloud-side-equivalent-scala-no-broker--recommended-starting-point">4.3
 The cloud-side equivalent (Scala, no broker) — <strong>recommended
@@ -1508,18 +1601,20 @@ broker, no CI change</td>
 <tr>
 <td><strong>0b</strong></td>
 <td>Add the CORE-33235 cross-field contradiction test on iOS + Android
-(<code>capable</code> and <code>status</code> clauses)</td>
+(<code>capable</code> and <code>status</code> clauses), and <strong>gate
+the iOS port-list security icon on <code>capable</code></strong> — the
+one surface #29524 does not reach (§4.2)</td>
 <td>~1 h each</td>
 <td>Mobile / QAE</td>
 </tr>
 <tr>
 <td><strong>0c</strong></td>
-<td><strong>Cloud-side fix for CORE-33235</strong> — gate
-<code>enabled</code> in <code>PortSecurityView</code> on
-<code>capable</code> + live status + not-WAN, or stop deriving it from
-the persisted flag. This is the actual fix; 0b only stops the client
-rendering a bad value</td>
-<td>TBD</td>
+<td>✅ <strong>Done — cloud-side fix for CORE-33235 merged</strong> (<a
+href="https://github.com/eero-inc/cloud/pull/29524">#29524</a>,
+2026-09-04). Landed as a WAN gate on <code>isMACSecCapable</code> rather
+than a gate on <code>enabled</code>; <code>enabled</code> stays ungated
+by design, which is why 0b is still worth doing</td>
+<td>—</td>
 <td>Cloud</td>
 </tr>
 <tr>
@@ -1918,6 +2013,16 @@ stability should decide.</li>
 the critical path.</li>
 <li><strong>Phase 0 ownership</strong> (§4.3) — the golden-fixture specs
 need no Pact decision at all. Who picks them up, and when?</li>
+<li><strong>Should <code>enabled</code> stay ungated?</strong> (§2,
+§4.2) — <a
+href="https://github.com/eero-inc/cloud/pull/29524">#29524</a> fixed
+CORE-33235 through <code>capable</code> and left <code>enabled</code>
+reporting the persisted <code>portSecurityOn</code> flag, so the
+connections view still emits <code>capable=false, enabled=true</code>.
+Is "<code>enabled</code> = what the customer asked for" the intended
+contract, or should it be gated too? Either answer is fine, but it needs
+to be <em>stated</em>, because every consumer is currently free to guess
+— and iOS and Android already guess differently.</li>
 </ol>
 </main>
 </div>
