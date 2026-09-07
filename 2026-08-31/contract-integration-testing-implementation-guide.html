@@ -248,45 +248,38 @@ Summary and the "Where the shipped tests hit their ceiling" tab first if
 you want the <em>why</em>; this document is the <em>how</em>.</p>
 <hr />
 <h2 id="how-to-read-this-document">How to read this document</h2>
-<p>This is a consolidation of four earlier documents plus what has been
+<p>This consolidates the two Pact design documents plus what has been
 learned since shipping the reference implementation:</p>
 <table>
 <thead>
 <tr>
 <th>Source</th>
-<th>Date</th>
 <th>What it contributed</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>Pact Contract Testing — Technical Overview</code></td>
-<td>2026-06-03</td>
-<td>The spine: flow, contract anatomy, provider states, broker,
-<code>can-i-deploy</code>, catches/doesn't, industry evidence</td>
+<td><strong><a
+href="https://docs.google.com/document/d/1VYGn1C1WjJFgRv8KljLLjrFJI2UhHlGLIRy-4u1gYRo/edit?tab=t.0#heading=h.kw35oi5j2gnx">Pact
+Contract Testing for Mobile</a></strong></td>
+<td>The consumer side and the shared spine: flow, contract anatomy,
+provider states, broker and <code>can-i-deploy</code>, what Pact catches
+and does not, consumer CI wiring, rollout phases, success metrics,
+risks, industry evidence</td>
 </tr>
 <tr>
-<td><code>Pact Provider Verification: Cloud (revised v2)</code></td>
-<td>2026-06-03</td>
-<td>Provider side — library, test placement, verification example, CI
-job, state options</td>
-</tr>
-<tr>
-<td><code>RFC: Pact Contract Testing for Mobile</code></td>
-<td>2026-05-27</td>
-<td>Consumer CI wiring, rollout phases, success metrics, risks</td>
-</tr>
-<tr>
-<td><code>Pact Provider Verification — Cloud Repo</code></td>
-<td>2026-05-27</td>
-<td>Rollout table and effort estimate (dropped from the v2
-revision)</td>
+<td><strong><a
+href="https://docs.google.com/document/d/1lTs2tvXGKvozbB5X9IP46CwsXIE622Ef9wXVMj4ExDM/edit?tab=t.0#heading=h.o0kzplpmq5em">Pact
+Provider Verification for Cloud</a></strong></td>
+<td>The provider side: library, test placement, the verification
+example, CI job, provider-state options, rollout table and effort
+estimate</td>
 </tr>
 </tbody>
 </table>
 <p>Everything factual about <code>eero-inc/cloud</code> has been
 re-verified against the repo at <code>main</code> for this document.
-<strong>Three claims from the May RFCs were stale and are corrected
+<strong>Three claims in the Pact design docs are stale and are corrected
 here</strong> — see <a
 href="#appendix-a--verified-environment-facts">Appendix A</a>. Two
 implementation gaps the earlier docs did not cover are called out inline
@@ -449,10 +442,10 @@ contract gap, and it is the case for Approach B existing at all.</li>
 <p>This is why the guide is not simply "do what mobile did."</p>
 <blockquote>
 <p><strong>Live ticket.</strong> CORE-33235 is under active
-investigation with a full root-cause writeup and a live repro on stage
-network 1304594. Talk to Maria before acting on the code paths above —
-they are cited from that investigation, not independently re-derived
-here.</p>
+investigation, with a full root-cause writeup and a live repro on stage
+network 1304594. The code paths above are quoted from that investigation
+rather than independently re-derived here — <strong>ask Maria for the
+writeup before acting on them.</strong></p>
 </blockquote>
 <hr />
 <h2 id="3-the-two-approaches-side-by-side">3. The two approaches, side
@@ -961,7 +954,7 @@ id="environment-verified-2026-08-31-against-eero-inccloud-at-main">Environment
 <tr>
 <th></th>
 <th>Value</th>
-<th>vs. May RFCs</th>
+<th>vs. the design docs</th>
 </tr>
 </thead>
 <tbody>
@@ -990,13 +983,13 @@ id="environment-verified-2026-08-31-against-eero-inccloud-at-main">Environment
 <td>Test frameworks</td>
 <td>ScalaTest 3.2.19, scalatestplus-play 6.0.0, mockito-5-18,
 scalacheck-1-18</td>
-<td>Not covered by the RFCs</td>
+<td>Not covered</td>
 </tr>
 <tr>
 <td>JUnit interface</td>
 <td><code>com.github.sbt % junit-interface % 0.13.3</code> —
 <strong>JUnit 4 only</strong></td>
-<td>Not covered by the RFCs</td>
+<td>Not covered</td>
 </tr>
 <tr>
 <td>Modules</td>
@@ -1022,7 +1015,7 @@ standard process for new third-party dependencies.</p>
 </blockquote>
 <p>Add to <code>project/Dependencies.scala</code>:</p>
 <div class="sourceCode" id="cb12"><pre
-class="sourceCode scala"><code class="sourceCode scala"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">val</span> pactVersion  <span class="op">=</span> <span class="st">&quot;4.6.14&quot;</span>   <span class="co">// version pinned by the May 2026 RFCs — confirm the current release at adoption time</span></span>
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">val</span> pactVersion  <span class="op">=</span> <span class="st">&quot;4.6.14&quot;</span>   <span class="co">// version pinned by the cloud design doc — confirm the current release at adoption time</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">val</span> pactProvider <span class="op">=</span> <span class="st">&quot;au.com.dius.pact.provider&quot;</span> <span class="op">%</span> <span class="st">&quot;junit5&quot;</span> <span class="op">%</span> pactVersion <span class="op">%</span> Test</span></code></pre></div>
 <p>Then in the module's <code>build.sbt</code>:</p>
 <div class="sourceCode" id="cb13"><pre
@@ -1035,7 +1028,7 @@ class="sourceCode scala"><code class="sourceCode scala"><span id="cb13-1"><a hre
 constructs. The repo has <code>junit-interface 0.13.3</code>, which is a
 <strong>JUnit 4</strong> sbt bridge. sbt has no native JUnit 5
 runner.</p>
-<p>Two ways out, both real work the earlier RFCs did not budget:</p>
+<p>Two ways out, both real work the design docs did not budget:</p>
 <p><strong>Option 1 — add a Jupiter interface (smaller change).</strong>
 Add the sbt Jupiter bridge and register the framework for the
 verification module only:</p>
@@ -1688,7 +1681,7 @@ where drift is the main risk</td>
 <h2 id="appendix-a--verified-environment-facts">Appendix A — Verified
 environment facts</h2>
 <p>Verified 2026-08-31 against <code>eero-inc/cloud</code> at
-<code>main</code>. <strong>The May 2026 RFCs asserted Scala 2.12; it is
+<code>main</code>. <strong>The Pact design docs assert Scala 2.12; it is
 2.13.18.</strong> Everything below was read from the repo, not carried
 forward.</p>
 <table>
@@ -1769,15 +1762,15 @@ forward.</p>
 </tr>
 </tbody>
 </table>
-<p><code>pact-jvm 4.6.14</code> is the version pinned by the May RFCs
-and has not been re-checked against the current upstream release.
-Confirm before adding the dependency.</p>
+<p><code>pact-jvm 4.6.14</code> is the version pinned by the cloud
+design doc and has not been re-checked against the current upstream
+release. Confirm before adding the dependency.</p>
 <hr />
 <h2 id="appendix-b--industry-evidence">Appendix B — Industry
 evidence</h2>
-<p>Carried forward from the June technical overview. Presented as
-supporting context; the August gap analysis is the local evidence and is
-the stronger argument.</p>
+<p>Carried forward from the mobile design doc. Presented as supporting
+context; the August gap analysis is the local evidence and is the
+stronger argument.</p>
 <h3 id="case-studies-pact-foundation">Case studies (Pact
 Foundation)</h3>
 <table>
@@ -1878,6 +1871,10 @@ adoption</td>
 </table>
 <h3 id="sources">Sources</h3>
 <ul>
+<li>Pact Contract Testing for Mobile (eero design doc) — <a
+href="https://docs.google.com/document/d/1VYGn1C1WjJFgRv8KljLLjrFJI2UhHlGLIRy-4u1gYRo/edit?tab=t.0#heading=h.kw35oi5j2gnx">https://docs.google.com/document/d/1VYGn1C1WjJFgRv8KljLLjrFJI2UhHlGLIRy-4u1gYRo/edit?tab=t.0#heading=h.kw35oi5j2gnx</a></li>
+<li>Pact Provider Verification for Cloud (eero design doc) — <a
+href="https://docs.google.com/document/d/1lTs2tvXGKvozbB5X9IP46CwsXIE622Ef9wXVMj4ExDM/edit?tab=t.0#heading=h.o0kzplpmq5em">https://docs.google.com/document/d/1lTs2tvXGKvozbB5X9IP46CwsXIE622Ef9wXVMj4ExDM/edit?tab=t.0#heading=h.o0kzplpmq5em</a></li>
 <li>Pact Foundation case studies — <a
 href="https://docs.pact.io/users/case_studies">https://docs.pact.io/users/case_studies</a></li>
 <li>Pact Foundation testimonials — <a
@@ -1903,15 +1900,15 @@ seeding harness look like against the real persistence layer for
 <code>/2.2/account/networks</code> and <code>/login</code>? Does that
 push us toward the state-endpoint option?</li>
 <li><strong>Verification target</strong> — spin up Play in-process per
-run, or verify against <code>stage-ci</code>? The v2 RFC assumed
-<code>stage-ci</code>; the in-memory option is faster and more isolated
-but needs a test database story.</li>
+run, or verify against <code>stage-ci</code>? The cloud design doc
+assumed <code>stage-ci</code>; the in-memory option is faster and more
+isolated but needs a test database story.</li>
 <li><strong>Broker hosting</strong> — Pactflow SaaS, or self-hosted from
 the start? Is there an existing internal broker to reuse?</li>
 <li><strong>Trigger policy</strong> (§5.9) — path filters, every-PR, or
 merge-only publishing? And does <code>can-i-deploy</code> start advisory
 or blocking?</li>
-<li><strong>Which endpoints first</strong> — the RFCs propose
+<li><strong>Which endpoints first</strong> — the design docs propose
 <code>/2.2/account/networks</code> and <code>/login</code> as generic
 starting points. The August evidence argues for <strong>Multi-WAN / WAN
 links</strong> (19 bugs, 9 P0) instead. Cloud's view on churn and

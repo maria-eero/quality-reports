@@ -11,16 +11,14 @@
 
 ## How to read this document
 
-This is a consolidation of four earlier documents plus what has been learned since shipping the reference implementation:
+This consolidates the two Pact design documents plus what has been learned since shipping the reference implementation:
 
-| Source | Date | What it contributed |
-|---|---|---|
-| `Pact Contract Testing — Technical Overview` | 2026-06-03 | The spine: flow, contract anatomy, provider states, broker, `can-i-deploy`, catches/doesn't, industry evidence |
-| `Pact Provider Verification: Cloud (revised v2)` | 2026-06-03 | Provider side — library, test placement, verification example, CI job, state options |
-| `RFC: Pact Contract Testing for Mobile` | 2026-05-27 | Consumer CI wiring, rollout phases, success metrics, risks |
-| `Pact Provider Verification — Cloud Repo` | 2026-05-27 | Rollout table and effort estimate (dropped from the v2 revision) |
+| Source | What it contributed |
+|---|---|
+| **[Pact Contract Testing for Mobile](https://docs.google.com/document/d/1VYGn1C1WjJFgRv8KljLLjrFJI2UhHlGLIRy-4u1gYRo/edit?tab=t.0#heading=h.kw35oi5j2gnx)** | The consumer side and the shared spine: flow, contract anatomy, provider states, broker and `can-i-deploy`, what Pact catches and does not, consumer CI wiring, rollout phases, success metrics, risks, industry evidence |
+| **[Pact Provider Verification for Cloud](https://docs.google.com/document/d/1lTs2tvXGKvozbB5X9IP46CwsXIE622Ef9wXVMj4ExDM/edit?tab=t.0#heading=h.o0kzplpmq5em)** | The provider side: library, test placement, the verification example, CI job, provider-state options, rollout table and effort estimate |
 
-Everything factual about `eero-inc/cloud` has been re-verified against the repo at `main` for this document. **Three claims from the May RFCs were stale and are corrected here** — see [Appendix A](#appendix-a--verified-environment-facts). Two implementation gaps the earlier docs did not cover are called out inline and flagged **NEW**.
+Everything factual about `eero-inc/cloud` has been re-verified against the repo at `main` for this document. **Three claims in the Pact design docs are stale and are corrected here** — see [Appendix A](#appendix-a--verified-environment-facts). Two implementation gaps the earlier docs did not cover are called out inline and flagged **NEW**.
 
 ---
 
@@ -83,7 +81,7 @@ Three lessons that shape this document:
 
 This is why the guide is not simply "do what mobile did."
 
-> **Live ticket.** CORE-33235 is under active investigation with a full root-cause writeup and a live repro on stage network 1304594. Talk to Maria before acting on the code paths above — they are cited from that investigation, not independently re-derived here.
+> **Live ticket.** CORE-33235 is under active investigation, with a full root-cause writeup and a live repro on stage network 1304594. The code paths above are quoted from that investigation rather than independently re-derived here — **ask Maria for the writeup before acting on them.**
 
 ---
 
@@ -448,14 +446,14 @@ pact-broker publish ./pacts \
 
 #### Environment (verified 2026-08-31 against `eero-inc/cloud` at `main`)
 
-| | Value | vs. May RFCs |
+| | Value | vs. the design docs |
 |---|---|---|
 | Scala | **2.13.18** | RFCs said 2.12 — **corrected** |
 | sbt | 1.12.1 (`project/build.properties`) | Confirmed |
 | Play | 2.9.10 (`sbt-plugin`) | Confirmed ("2.9") |
 | CI | GitLab CI, `cl generateTestsPipeline` at `.gitlab-ci.yml:134` | Confirmed |
-| Test frameworks | ScalaTest 3.2.19, scalatestplus-play 6.0.0, mockito-5-18, scalacheck-1-18 | Not covered by the RFCs |
-| JUnit interface | `com.github.sbt % junit-interface % 0.13.3` — **JUnit 4 only** | Not covered by the RFCs |
+| Test frameworks | ScalaTest 3.2.19, scalatestplus-play 6.0.0, mockito-5-18, scalacheck-1-18 | Not covered |
+| JUnit interface | `com.github.sbt % junit-interface % 0.13.3` — **JUnit 4 only** | Not covered |
 | Modules | 195 under `modules/` | — |
 | Existing Pact usage | None — no match in `project/Dependencies.scala` or `build.sbt` | Greenfield |
 
@@ -468,7 +466,7 @@ pact-broker publish ./pacts \
 Add to `project/Dependencies.scala`:
 
 ```scala
-val pactVersion  = "4.6.14"   // version pinned by the May 2026 RFCs — confirm the current release at adoption time
+val pactVersion  = "4.6.14"   // version pinned by the cloud design doc — confirm the current release at adoption time
 val pactProvider = "au.com.dius.pact.provider" % "junit5" % pactVersion % Test
 ```
 
@@ -482,7 +480,7 @@ libraryDependencies += Dependencies.pactProvider
 
 `pact-jvm`'s provider API is **JUnit 5 (Jupiter)** first: `@TestTemplate` plus `PactVerificationInvocationContextProvider` are Jupiter constructs. The repo has `junit-interface 0.13.3`, which is a **JUnit 4** sbt bridge. sbt has no native JUnit 5 runner.
 
-Two ways out, both real work the earlier RFCs did not budget:
+Two ways out, both real work the design docs did not budget:
 
 **Option 1 — add a Jupiter interface (smaller change).** Add the sbt Jupiter bridge and register the framework for the verification module only:
 
@@ -866,7 +864,7 @@ That last row is the one to actually watch. It is measured the same way in every
 
 ## Appendix A — Verified environment facts
 
-Verified 2026-08-31 against `eero-inc/cloud` at `main`. **The May 2026 RFCs asserted Scala 2.12; it is 2.13.18.** Everything below was read from the repo, not carried forward.
+Verified 2026-08-31 against `eero-inc/cloud` at `main`. **The Pact design docs assert Scala 2.12; it is 2.13.18.** Everything below was read from the repo, not carried forward.
 
 | Fact | Value | Source |
 |---|---|---|
@@ -884,13 +882,13 @@ Verified 2026-08-31 against `eero-inc/cloud` at `main`. **The May 2026 RFCs asse
 | Modules | 195 under `modules/` | `ls -d modules/*/` |
 | Existing Pact usage | None | No match in `project/Dependencies.scala`, `build.sbt` |
 
-`pact-jvm 4.6.14` is the version pinned by the May RFCs and has not been re-checked against the current upstream release. Confirm before adding the dependency.
+`pact-jvm 4.6.14` is the version pinned by the cloud design doc and has not been re-checked against the current upstream release. Confirm before adding the dependency.
 
 ---
 
 ## Appendix B — Industry evidence
 
-Carried forward from the June technical overview. Presented as supporting context; the August gap analysis is the local evidence and is the stronger argument.
+Carried forward from the mobile design doc. Presented as supporting context; the August gap analysis is the local evidence and is the stronger argument.
 
 ### Case studies (Pact Foundation)
 
@@ -918,6 +916,8 @@ Carried forward from the June technical overview. Presented as supporting contex
 
 ### Sources
 
+- Pact Contract Testing for Mobile (eero design doc) — https://docs.google.com/document/d/1VYGn1C1WjJFgRv8KljLLjrFJI2UhHlGLIRy-4u1gYRo/edit?tab=t.0#heading=h.kw35oi5j2gnx
+- Pact Provider Verification for Cloud (eero design doc) — https://docs.google.com/document/d/1lTs2tvXGKvozbB5X9IP46CwsXIE622Ef9wXVMj4ExDM/edit?tab=t.0#heading=h.o0kzplpmq5em
 - Pact Foundation case studies — https://docs.pact.io/users/case_studies
 - Pact Foundation testimonials — https://docs.pact.io/users/testimonials
 - Worldmetrics QA Testing Industry Statistics (2026) — https://worldmetrics.org/qa-testing-industry-statistics/
@@ -932,9 +932,9 @@ Everything that cannot be answered from outside the cloud team. These are the ac
 
 1. **JUnit5 under sbt** (§5.6) — add `sbt-jupiter-interface` scoped to one module, or drive `ProviderVerifier` from ScalaTest? Biggest unknown in the plan.
 2. **`@State` seeding** (§5.7) — what does a seeding harness look like against the real persistence layer for `/2.2/account/networks` and `/login`? Does that push us toward the state-endpoint option?
-3. **Verification target** — spin up Play in-process per run, or verify against `stage-ci`? The v2 RFC assumed `stage-ci`; the in-memory option is faster and more isolated but needs a test database story.
+3. **Verification target** — spin up Play in-process per run, or verify against `stage-ci`? The cloud design doc assumed `stage-ci`; the in-memory option is faster and more isolated but needs a test database story.
 4. **Broker hosting** — Pactflow SaaS, or self-hosted from the start? Is there an existing internal broker to reuse?
 5. **Trigger policy** (§5.9) — path filters, every-PR, or merge-only publishing? And does `can-i-deploy` start advisory or blocking?
-6. **Which endpoints first** — the RFCs propose `/2.2/account/networks` and `/login` as generic starting points. The August evidence argues for **Multi-WAN / WAN links** (19 bugs, 9 P0) instead. Cloud's view on churn and stability should decide.
+6. **Which endpoints first** — the design docs propose `/2.2/account/networks` and `/login` as generic starting points. The August evidence argues for **Multi-WAN / WAN links** (19 bugs, 9 P0) instead. Cloud's view on churn and stability should decide.
 7. **Security review** — timeline for `au.com.dius.pact.provider` approval, so it does not become the critical path.
 8. **Phase 0 ownership** (§4.3) — the golden-fixture specs need no Pact decision at all. Who picks them up, and when?

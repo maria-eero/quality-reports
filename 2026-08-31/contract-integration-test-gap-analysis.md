@@ -181,7 +181,7 @@ This is the most important section for the cloud handoff, and it is an argument 
 
 **CORE-33235** landed against MACsec Port Security — the interface with 12 contract tests and 3 integration tests merged on each platform. The tests passed. The bug shipped.
 
-The mechanism matters, and it is not what the ticket first looked like. The reporter's three-source snapshot showed node and cloud `state_data` both correct and concluded the defect was in the app. A code-level investigation (`~/CORE-33235-root-cause-plan.md`) found something more interesting:
+The mechanism matters, and it is not what the ticket first looked like. The reporter's three-source snapshot showed node and cloud `state_data` both correct and concluded the defect was in the app. A code-level root-cause investigation (writeup available from Maria) found something more interesting:
 
 **Cloud serves port security in two independent representations, and the port UI reads the wrong one.**
 
