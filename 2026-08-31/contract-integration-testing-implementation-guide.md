@@ -50,20 +50,40 @@ Contract + integration tests for MACsec Port Security are **merged on both platf
 
 An earlier iteration gated these behind an opt-in `test:contract` job with a diff-scoped selection script and a `run-contract-tests` label. That was dropped after review with an Android engineer: the tests are fast, deterministic and dependency-free, so there is no reason to treat them differently from any other unit test.
 
-**That decision does not transfer to Pact.** Pact provider verification needs a broker and a running application instance, so it is neither fast nor dependency-free. Section 6.7 treats its trigger as an open question rather than a settled one.
+**That decision does not transfer to Pact.** Pact provider verification needs a broker and a running application instance, so it is neither fast nor dependency-free. Section 5.9 treats its trigger as an open question rather than a settled one.
 
 ### What shipped, and what it missed
 
-**CORE-33235** landed on 2026-08-25 against MACsec Port Security — the interface with 12 contract tests on each platform. The tests passed. The bug shipped.
+**CORE-33235** landed against MACsec Port Security — the interface with 12 contract tests on each platform. The tests passed. The bug shipped. **This is the single most relevant ticket in this document for Cloud Engineering, because the fix is yours.**
 
-The app renders Port Security as `enabled` on a port where neither the node's bookshelf nor cloud `state_data` reports MACsec, and where cloud reports the port as not MACsec-capable. It derives `enabled` from the **pair-facing** port. The tests asserted that the client *decodes* the payload correctly; the client decoded correctly and then derived the wrong thing. The fixture set had no case for that hardware topology.
+It was reported as an app bug. The reporter took a simultaneous three-source snapshot, found the node bookshelf and cloud `state_data` both correct for the WAN port, and reasonably concluded the defect was client-side. A code-level investigation found otherwise:
 
-Two lessons that shape this document:
+**Cloud serves port security in two independent representations, and the port UI reads the wrong one.**
 
-1. A decode-boundary fixture test validates the client against a recording, and **a recording cannot disagree with you**. Fixture coverage is bounded by imagination — the same weakness as mocks, shared between platforms rather than per-developer.
-2. Cloud already held the correct answer. A contract the **provider** verifies would have failed in cloud CI, where the truth lived.
+| | `state_data` / `/eeros` — status view | `/connections`, `/ethernet_ports` — connections view |
+|---|---|---|
+| Fields | `status` only | `capable`, **`enabled`**, `status` |
+| `enabled` source | — emitted only when the node reports a live `macSecStatus` book | the persisted **`NodeEthernetPortSetting.portSecurityOn` DB flag** |
+| Guards on `enabled` | n/a — faithful | **none**: no `is_wan_port` guard, no `capable` guard, no live-status gating |
+| Who reads it | Home MACsec banner only | **the port rows / port detail** — the buggy screen |
+| Result on the Novo WAN port | correct: `None` | **stale `enabled=true` on `eth1`** |
 
-That is the case for Approach B existing at all, and the reason this guide is not simply "do what mobile did."
+Relevant code paths, all in `eero-inc/cloud`:
+
+- Faithful path — `modules/monolithrules/.../views/eeroview/StatusView.scala` → `PortSecurityStatusView.scala`: emits `port_security` only when the node reports a live `macSecStatus`
+- Risk path — `modules/monolithrules/.../views/eerosconnectionsview/PortSecurityView.scala`: `enabled = nodeEthernetPortSetting.exists(_.portSecurityOn.value)`, with no `is_wan_port` / `capable` / live-status gate
+- Flag setters — `modules/commonbusiness/.../rules/PortSecurityRules.scala` (`enablePortSecurity`, `propagateToPeerOnEnable`): both gate only on `isMACSecCapable`, neither excludes a WAN port, neither clears the flag when a port later becomes WAN
+- Why Novo and not Hornbill — `modules/data/.../hwmodel/NovoSpecifications.scala`: **both `eth0` and `eth1` advertise `PORT_SECURITY`**, so Novo's WAN port can carry a stale `enabled`
+
+Three lessons that shape this document:
+
+1. **A fixture test cannot catch producer-side staleness, by construction.** The fixture *is* the assertion. If the recorded payload carries `enabled=true`, every test built on it agrees. No client-side fixture test could have caught this without already knowing the answer.
+2. **The client-side test that would have helped is a cross-field invariant, not a decode test** — see §4.2.
+3. **Two cloud representations of the same fact disagreed and nothing asserted they should agree.** That is a provider-side contract gap, and it is the case for Approach B existing at all.
+
+This is why the guide is not simply "do what mobile did."
+
+> **Live ticket.** CORE-33235 is under active investigation with a full root-cause writeup and a live repro on stage network 1304594. Talk to Maria before acting on the code paths above — they are cited from that investigation, not independently re-derived here.
 
 ---
 
@@ -158,13 +178,15 @@ fun `CT-013 POST toggle error parses meta with non-200 code and mapped EeroError
 
 ### 4.2 What to fix in the pattern before copying it
 
-Copy it, but do not copy its blind spot. CORE-33235 escaped because the suite asserted decoding and not derivation.
+Copy it, but do not copy its blind spot. The Port Security suite asserted that fields *decode*; CORE-33235 was a field that decoded perfectly and was already wrong.
 
-**Rule: for every field the UI renders, assert the predicate that produces it, not just that the field parsed.** For Port Security that is:
+**Rule: assert contradictions between fields inside a single payload, not just that each field parsed.** A contradiction check does not require knowing which value is correct, which is exactly why it survives a bad fixture. For Port Security:
 
-> For each port, `enabled` equals the node-reported state for **that** port — never a paired port, never a network-level flag.
+> Within one `port_security` object, `enabled` is never `true` when `capable` is `false`, when live `status` is `DISABLED`, or when the port is the WAN port.
 
-Add that test to both platforms. It is a handful of lines and it closes a demonstrated gap in the pattern we are asking other teams to adopt.
+The last clause has a wrinkle worth knowing before you write it: `is_wan_port` is **not present in the connections-view payload** — it lives only in the network-poll model. So the WAN clause either needs cloud to add the field to the connections view (the better fix) or has to be asserted at a level where both models are in scope.
+
+Add the `capable` and `status` clauses to both platforms now; they need nothing from cloud. It is a handful of lines and it closes a demonstrated gap in the pattern we are asking other teams to adopt.
 
 ### 4.3 The cloud-side equivalent (Scala, no broker) — **recommended starting point**
 
@@ -796,7 +818,8 @@ The Android `PortDetailViewModel` INT-001..003 pattern — fake API client, asse
 | Phase | Scope | Effort | Owner |
 |---|---|---|---|
 | **0** | **§4.3 cloud-side golden-fixture specs** — request validation, enum exhaustiveness, status mapping. No dependencies, no broker, no CI change | Hours per pattern | Cloud |
-| **0b** | Add the CORE-33235 per-port derivation test on iOS + Android | ~1 h each | Mobile / QAE |
+| **0b** | Add the CORE-33235 cross-field contradiction test on iOS + Android (`capable` and `status` clauses) | ~1 h each | Mobile / QAE |
+| **0c** | **Cloud-side fix for CORE-33235** — gate `enabled` in `PortSecurityView` on `capable` + live status + not-WAN, or stop deriving it from the persisted flag. This is the actual fix; 0b only stops the client rendering a bad value | TBD | Cloud |
 | **1** | **Timeboxed spike** — resolve the JUnit5-vs-ScalaTest question (§5.6) and the `@State` seeding question (§5.7) against two real endpoints | 2–3 days | Cloud |
 | **2** | Pact consumer tests for 1–2 critical endpoints (`/2.2/account/networks`, `/login`), iOS first | 2 weeks | Mobile |
 | **3** | Same endpoints on Android + provider verification job in cloud CI, broker connected | 2 weeks | Mobile + Cloud |

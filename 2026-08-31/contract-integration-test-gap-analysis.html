@@ -162,7 +162,7 @@
 
 <div class="callout">
   <strong>The finding is not the share — it is that the rate is flat and the interfaces repeat.</strong><br>
-  Three snapshots across three months land between 7 and 8 categorized bugs per week every time. The interface named <strong>target #1 in the July proposal — Speedtest provider overrides — produced 7 more bugs in this window</strong> and received zero contract tests. Multi-WAN / WAN links has displaced it as the highest-volume boundary with <strong>19 bugs, 9 of them P0</strong>. And <a href="#tab-ceiling" onclick="switchTab('ceiling', document.querySelectorAll('.tab-btn')[2])">CORE-33235 is a MACsec recurrence on the exact interface the shipped tests cover</a>.
+  Three snapshots across three months land between 7 and 8 categorized bugs per week every time. The interface named <strong>target #1 in the July proposal — Speedtest provider overrides — produced 7 more bugs in this window</strong> and received zero contract tests. Multi-WAN / WAN links has displaced it as the highest-volume boundary with <strong>19 bugs, 9 of them P0</strong>. And <a href="#tab-ceiling" onclick="switchTab('ceiling', document.querySelectorAll('.tab-btn')[2])">CORE-33235 is a MACsec recurrence on the exact interface the shipped tests cover</a> — because cloud serves <code>port_security</code> in two representations that disagree, and nothing asserted they should agree.
 </div>
 
 <div class="grid grid-2">
@@ -254,7 +254,7 @@
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32666">CORE-32666</a></td><td><span class="badge badge-p1">P1</span></td><td>A wired leaf on physical Port 1 is reported as "Port 2" by Android; iOS correctly shows Port 1. Same eeroOS 7.17.0-12695. <span class="badge badge-recur">Recurrence of CORE-31750</span></td><td>Contract test: <code>connected_to.port</code> semantics are fixed in the API spec and asserted identically by iOS and Android</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32595">CORE-32595</a></td><td><span class="badge badge-p1">P1</span></td><td>The Data Pack "running low" alert fires at 80% on both iOS and Android where the spec is ≥90% — both clients hardcode the same wrong threshold</td><td>Contract test: the alert threshold is a single shared constant sourced from the API, not a per-client literal</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33165">CORE-33165</a></td><td><span class="badge badge-p1">P1</span></td><td>Restarting one leaf makes <strong>all</strong> eeros show "Restarting" on the Android home screen; iOS correctly scopes the status to the restarted node</td><td>Contract test: per-node status is keyed by node id on both platforms — a status event never fans out to siblings</td></tr>
-<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33235">CORE-33235</a></td><td><span class="badge badge-p2">P2</span></td><td><strong>MACsec recurrence.</strong> The app shows Port Security enabled on a port where neither the node's bookshelf nor cloud <code>state_data</code> reports MACsec — and cloud reports the port as not MACsec-capable. The app renders it enabled whenever the <strong>pair-facing</strong> port is enabled. Novo-Crane and Novo-Snowbird, not Hornbill-Crane <span class="badge badge-recur">escaped the shipped tests</span></td><td>Contract test: the per-port <code>enabled</code> predicate is asserted per port against node-reported state, not derived from a paired port</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33235">CORE-33235</a></td><td><span class="badge badge-p2">P2</span></td><td><strong>MACsec recurrence — a two-representation contract split.</strong> The app shows Port Security enabled on the Novo WAN port (<code>eth1</code>). Cloud serves port security <strong>twice</strong>: <code>state_data</code>/<code>/eeros</code> is faithful, while <code>/connections</code> sets <code>enabled</code> straight from the persisted <code>NodeEthernetPortSetting.portSecurityOn</code> DB flag with <strong>no WAN guard, no <code>capable</code> guard, no live-status gating</strong> — and never clears it. The port rows read the second one. Novo reproduces and Hornbill does not because both Novo ports advertise PORT_SECURITY capability. <strong>Primary fix is cloud-side</strong> <span class="badge badge-recur">escaped the shipped tests</span></td><td>Contract test: the two representations of <code>port_security</code> agree for the same port, and <code>enabled</code> in the connections view is gated on <code>capable</code>, live status, and not-WAN</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32446">CORE-32446</a></td><td><span class="badge badge-p2">P2</span></td><td>The iOS IP Addresses info popup omits the IPv6 summary section that Android renders inline</td><td>Contract test: info-popup section set comes from one shared content map</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32517">CORE-32517</a></td><td><span class="badge badge-p3">P3</span></td><td>On first network creation Android presets the timezone to Pacific Standard Time while iOS shows "No timezone set" — divergent defaults for a value time-dependent features read</td><td>Contract test: the new-network default timezone is one shared value; "unset" is valid on both platforms or neither</td></tr>
 <tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32470">CORE-32470</a></td><td><span class="badge badge-p3">P3</span></td><td>With eero Plus enabled, the Internet page shows a "Mobile backup" row on AOS and omits it on iOS</td><td>Contract test: the Connections row set is one shared list keyed by entitlement</td></tr>
@@ -390,35 +390,49 @@
   This section is the argument against over-claiming for the approach that shipped, and it is the reason the <a href="./contract-integration-testing-implementation-guide.html">implementation guide</a> presents two approaches rather than one.
 </div>
 
+<div class="section-title">The mechanism — cloud answers the same question twice</div>
+<p style="font-size: 0.9rem; margin-bottom: 14px;">This is not what the ticket first looked like. The reporter's three-source snapshot showed the node and cloud <code>state_data</code> both correct and concluded the defect was in the app. A code-level investigation found that <strong>cloud serves port security in two independent representations, and the port UI reads the wrong one.</strong></p>
+<table>
+<thead><tr><th></th><th><code>state_data</code> / <code>/eeros</code> — status view</th><th><code>/connections</code>, <code>/ethernet_ports</code> — connections view</th></tr></thead>
+<tbody>
+<tr><td>Fields</td><td><code>status</code> only</td><td><code>capable</code>, <strong><code>enabled</code></strong>, <code>status</code></td></tr>
+<tr><td><code>enabled</code> source</td><td>— emitted only when the node reports a live <code>macSecStatus</code> book</td><td>the persisted <strong><code>NodeEthernetPortSetting.portSecurityOn</code> DB flag</strong></td></tr>
+<tr><td>Guards on <code>enabled</code></td><td>n/a — faithful</td><td><strong>none</strong>: no WAN guard, no <code>capable</code> guard, no live-status gating</td></tr>
+<tr><td>Who reads it</td><td>Home MACsec banner only</td><td><strong>the port rows / port detail</strong> — the buggy screen</td></tr>
+<tr><td>Result on the WAN port</td><td>correct: <code>None</code></td><td><strong>stale <code>enabled=true</code> on <code>eth1</code></strong></td></tr>
+</tbody>
+</table>
+<p style="font-size: 0.9rem; margin-bottom: 22px;">The flag is set by <code>enablePortSecurity</code> and <code>propagateToPeerOnEnable</code>, both gating only on <code>isMACSecCapable</code>, neither excluding a WAN port, neither clearing the flag when a port later becomes WAN. Novo reproduces and Hornbill does not because <strong>both of Novo's ports advertise PORT_SECURITY capability</strong>, so its WAN port can carry a stale <code>enabled</code>. <strong>The primary fix is cloud-side.</strong></p>
+
 <div class="section-title">Why the shipped tests missed it</div>
 <table>
-<thead><tr><th>What the shipped tests assert</th><th>What CORE-33235 actually is</th></tr></thead>
+<thead><tr><th>What the shipped tests assert</th><th>Why that was not enough</th></tr></thead>
 <tbody>
-<tr><td>The client <strong>decodes</strong> a Port Security payload correctly — field types, malformed-input tolerance, enum handling</td><td>The client decoded correctly, then <strong>derived</strong> the wrong thing from correct data</td></tr>
-<tr><td>Golden fixtures represent payload shapes captured from the API</td><td>The fixtures had no case for a port whose <em>pair-facing</em> port is enabled while it is not</td></tr>
-<tr><td>Integration tests assert the ViewModel emits the state the API reported</td><td>The app renders <code>enabled</code> for the WAN port whenever the pair-facing port is enabled — a client-side derivation the API never asked for</td></tr>
+<tr><td>The client <strong>decodes</strong> a <code>port_security</code> payload correctly — field types, malformed-input tolerance, enum handling</td><td>The client decoded faithfully. The value it decoded was already wrong upstream</td></tr>
+<tr><td>Golden fixtures represent payload shapes captured from the API</td><td>No fixture paired <code>enabled=true</code> with <code>status=DISABLED</code> on a WAN port, because the fixtures treated <code>enabled</code> as ground truth</td></tr>
+<tr><td>Integration tests assert the ViewModel emits the state the API reported</td><td>It did exactly that. Faithfully rendering a bad flag is indistinguishable from correct behaviour at this boundary</td></tr>
 </tbody>
 </table>
 
 <div class="section-title">Three honest conclusions</div>
 
 <div class="card" style="margin-bottom: 16px;">
-  <h3>1 — A decode-boundary test does not cover a derivation</h3>
-  <p style="font-size: 0.9rem;">The fix is a contract test on the <em>predicate</em>: for each port, <code>enabled</code> must equal the node-reported state for <strong>that</strong> port. Not a broader framework. This is cheap and should be added to both platforms now.</p>
+  <h3>1 — A fixture test cannot catch producer-side staleness, by construction</h3>
+  <p style="font-size: 0.9rem;">The fixture <em>is</em> the assertion. If the recorded payload carries <code>enabled=true</code>, every test built on it agrees. There is no assertion a client-side fixture test could have made here without already knowing the answer.</p>
 </div>
 
 <div class="card" style="margin-bottom: 16px;">
-  <h3>2 — Golden fixtures only cover shapes someone thought to record</h3>
-  <p style="font-size: 0.9rem;">The pair-facing-port case existed in the hardware — reproducible on Novo-Crane and Novo-Snowbird, not on Hornbill-Crane — and not in the fixture set. Fixture coverage is a function of imagination, which is the same weakness as mocks, just shared between platforms instead of per-developer.</p>
+  <h3>2 — The client-side test that would have helped is a cross-field invariant, not a decode test</h3>
+  <p style="font-size: 0.9rem;">Assert that <code>enabled</code> is never true where <code>capable</code> is false, where live <code>status</code> is <code>DISABLED</code>, or on a WAN port — a contradiction check <em>inside a single payload</em>, which does not depend on knowing which value is right. Cheap, and it should be added to both platforms.</p>
 </div>
 
 <div class="card" style="margin-bottom: 16px;">
-  <h3>3 — This is where consumer-driven contracts earn their cost</h3>
-  <p style="font-size: 0.9rem;">A Pact-style contract makes the consumer's expectation an artifact the <strong>provider</strong> verifies. Cloud already reported this port as not MACsec-capable — the correct data existed on the cloud side. A provider-verified contract declaring "the client renders <code>enabled</code> only for ports reported capable <strong>and</strong> enabled" would have failed in cloud CI, where the truth already lived.</p>
+  <h3>3 — This is exactly where provider verification earns its cost</h3>
+  <p style="font-size: 0.9rem;">Two cloud representations of the same fact disagreed, and nothing anywhere asserted they should agree. A provider-verified contract stating "<code>/connections.port_security.enabled</code> is true only for a port that is <code>capable</code>, not WAN, and reporting live MACsec status" would have failed in <strong>cloud</strong> CI — which is also where the fix has to land.</p>
 </div>
 
 <div class="callout">
-  <strong>What this does not mean.</strong> The shipped approach is not wrong and does not need replacing. It caught a real class of bug at zero infrastructure cost and it gates every PR today. What CORE-33235 shows is the boundary of what a client-side fixture test can see: it validates the client against a recording, and a recording cannot disagree with you. Provider verification is what makes the other side of the boundary answerable.
+  <strong>What this does not mean.</strong> The shipped approach is not wrong and does not need replacing. It caught a real class of bug at zero infrastructure cost and gates every PR today. What CORE-33235 shows is the boundary of what a client-side fixture test can see: it validates the client against a recording, and <strong>a recording cannot disagree with you</strong>. CORE-33235 is the strongest argument in this analysis for provider verification — the bug presented as a client rendering defect, was reported as one, and is actually a producer emitting two contradictory answers to the same question.
 </div>
 
 <div class="section-title">The generalized lesson for the top-5 interfaces</div>
@@ -532,7 +546,7 @@
 </div>
 
 <div class="callout callout-warn">
-  <strong>Open follow-up from CORE-33235.</strong> Add the per-port derivation test to both platforms: for each port, <code>enabled</code> must equal the node-reported state for <em>that</em> port, never a paired port. The reference implementation is a good template and an incomplete one — see the <a href="#tab-ceiling" onclick="switchTab('ceiling', document.querySelectorAll('.tab-btn')[2])">ceiling tab</a>.
+  <strong>Open follow-up from CORE-33235.</strong> Add the cross-field contradiction test to both platforms — <code>enabled</code> is never true where <code>capable</code> is false, where live <code>status</code> is <code>DISABLED</code>, or on a WAN port. That stops the client rendering a bad flag; <strong>the flag itself is a cloud-side fix</strong> and is tracked separately. The reference implementation is a good template and an incomplete one — see the <a href="#tab-ceiling" onclick="switchTab('ceiling', document.querySelectorAll('.tab-btn')[2])">ceiling tab</a>.
 </div>
 
 <div class="section-title">The design decision that mattered</div>
@@ -557,7 +571,7 @@
 <div class="section-title">Next steps</div>
 <ol style="font-size: 0.9rem;">
   <li>✅ <strong>Reference implementation merged</strong> — Android #13181 and iOS #14285, gating every PR</li>
-  <li><strong>Add the CORE-33235 derivation test</strong> to both platforms — small, and it closes a demonstrated gap in the pattern we are asking others to adopt</li>
+  <li><strong>Add the CORE-33235 cross-field contradiction test</strong> to both platforms, and <strong>route the cloud-side fix</strong> for the ungated <code>portSecurityOn</code> flag — the client test stops the symptom, the cloud fix removes the cause</li>
   <li><strong>Pick Multi-WAN as the next reference interface</strong> — 9 P0s and active development make it the highest-value target</li>
   <li><strong>Hand the cloud side to Cloud Engineering</strong> — the <a href="./contract-integration-testing-implementation-guide.html">implementation guide</a> documents both approaches, verified against <code>eero-inc/cloud</code> at Scala 2.13.18 / sbt 1.12.1 / Play 2.9.10</li>
   <li><strong>Review checkpoint at end of sprint</strong> — compare new PR-time contract-test failures against Sentry events and new CORE tickets on the same interfaces</li>

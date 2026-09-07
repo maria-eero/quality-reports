@@ -352,32 +352,108 @@ dependency-free, so there is no reason to treat them differently from
 any other unit test.</p>
 <p><strong>That decision does not transfer to Pact.</strong> Pact
 provider verification needs a broker and a running application instance,
-so it is neither fast nor dependency-free. Section 6.7 treats its
+so it is neither fast nor dependency-free. Section 5.9 treats its
 trigger as an open question rather than a settled one.</p>
 <h3 id="what-shipped-and-what-it-missed">What shipped, and what it
 missed</h3>
-<p><strong>CORE-33235</strong> landed on 2026-08-25 against MACsec Port
-Security — the interface with 12 contract tests on each platform. The
-tests passed. The bug shipped.</p>
-<p>The app renders Port Security as <code>enabled</code> on a port where
-neither the node's bookshelf nor cloud <code>state_data</code> reports
-MACsec, and where cloud reports the port as not MACsec-capable. It
-derives <code>enabled</code> from the <strong>pair-facing</strong> port.
-The tests asserted that the client <em>decodes</em> the payload
-correctly; the client decoded correctly and then derived the wrong
-thing. The fixture set had no case for that hardware topology.</p>
-<p>Two lessons that shape this document:</p>
+<p><strong>CORE-33235</strong> landed against MACsec Port Security — the
+interface with 12 contract tests on each platform. The tests passed. The
+bug shipped. <strong>This is the single most relevant ticket in this
+document for Cloud Engineering, because the fix is yours.</strong></p>
+<p>It was reported as an app bug. The reporter took a simultaneous
+three-source snapshot, found the node bookshelf and cloud
+<code>state_data</code> both correct for the WAN port, and reasonably
+concluded the defect was client-side. A code-level investigation found
+otherwise:</p>
+<p><strong>Cloud serves port security in two independent
+representations, and the port UI reads the wrong one.</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>state_data</code> / <code>/eeros</code> — status view</th>
+<th><code>/connections</code>, <code>/ethernet_ports</code> —
+connections view</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fields</td>
+<td><code>status</code> only</td>
+<td><code>capable</code>, <strong><code>enabled</code></strong>,
+<code>status</code></td>
+</tr>
+<tr>
+<td><code>enabled</code> source</td>
+<td>— emitted only when the node reports a live
+<code>macSecStatus</code> book</td>
+<td>the persisted
+<strong><code>NodeEthernetPortSetting.portSecurityOn</code> DB
+flag</strong></td>
+</tr>
+<tr>
+<td>Guards on <code>enabled</code></td>
+<td>n/a — faithful</td>
+<td><strong>none</strong>: no <code>is_wan_port</code> guard, no
+<code>capable</code> guard, no live-status gating</td>
+</tr>
+<tr>
+<td>Who reads it</td>
+<td>Home MACsec banner only</td>
+<td><strong>the port rows / port detail</strong> — the buggy screen</td>
+</tr>
+<tr>
+<td>Result on the Novo WAN port</td>
+<td>correct: <code>None</code></td>
+<td><strong>stale <code>enabled=true</code> on
+<code>eth1</code></strong></td>
+</tr>
+</tbody>
+</table>
+<p>Relevant code paths, all in <code>eero-inc/cloud</code>:</p>
+<ul>
+<li>Faithful path —
+<code>modules/monolithrules/.../views/eeroview/StatusView.scala</code> →
+<code>PortSecurityStatusView.scala</code>: emits
+<code>port_security</code> only when the node reports a live
+<code>macSecStatus</code></li>
+<li>Risk path —
+<code>modules/monolithrules/.../views/eerosconnectionsview/PortSecurityView.scala</code>:
+<code>enabled = nodeEthernetPortSetting.exists(_.portSecurityOn.value)</code>,
+with no <code>is_wan_port</code> / <code>capable</code> / live-status
+gate</li>
+<li>Flag setters —
+<code>modules/commonbusiness/.../rules/PortSecurityRules.scala</code>
+(<code>enablePortSecurity</code>, <code>propagateToPeerOnEnable</code>):
+both gate only on <code>isMACSecCapable</code>, neither excludes a WAN
+port, neither clears the flag when a port later becomes WAN</li>
+<li>Why Novo and not Hornbill —
+<code>modules/data/.../hwmodel/NovoSpecifications.scala</code>:
+<strong>both <code>eth0</code> and <code>eth1</code> advertise
+<code>PORT_SECURITY</code></strong>, so Novo's WAN port can carry a
+stale <code>enabled</code></li>
+</ul>
+<p>Three lessons that shape this document:</p>
 <ol type="1">
-<li>A decode-boundary fixture test validates the client against a
-recording, and <strong>a recording cannot disagree with you</strong>.
-Fixture coverage is bounded by imagination — the same weakness as mocks,
-shared between platforms rather than per-developer.</li>
-<li>Cloud already held the correct answer. A contract the
-<strong>provider</strong> verifies would have failed in cloud CI, where
-the truth lived.</li>
+<li><strong>A fixture test cannot catch producer-side staleness, by
+construction.</strong> The fixture <em>is</em> the assertion. If the
+recorded payload carries <code>enabled=true</code>, every test built on
+it agrees. No client-side fixture test could have caught this without
+already knowing the answer.</li>
+<li><strong>The client-side test that would have helped is a cross-field
+invariant, not a decode test</strong> — see §4.2.</li>
+<li><strong>Two cloud representations of the same fact disagreed and
+nothing asserted they should agree.</strong> That is a provider-side
+contract gap, and it is the case for Approach B existing at all.</li>
 </ol>
-<p>That is the case for Approach B existing at all, and the reason this
-guide is not simply "do what mobile did."</p>
+<p>This is why the guide is not simply "do what mobile did."</p>
+<blockquote>
+<p><strong>Live ticket.</strong> CORE-33235 is under active
+investigation with a full root-cause writeup and a live repro on stage
+network 1304594. Talk to Maria before acting on the code paths above —
+they are cited from that investigation, not independently re-derived
+here.</p>
+</blockquote>
 <hr />
 <h2 id="3-the-two-approaches-side-by-side">3. The two approaches, side
 by side</h2>
@@ -588,19 +664,29 @@ class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cb2-1"><a hr
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">fun</span> `<span class="fu">CT</span>-013 <span class="fu">POST</span> <span class="fu">toggle</span> <span class="fu">error</span> <span class="fu">parses</span> <span class="fu">meta</span> <span class="fu">with</span> <span class="fu">non</span>-200 <span class="fu">code</span> <span class="fu">and</span> <span class="fu">mapped</span> <span class="fu">EeroError</span>`<span class="op">()</span> <span class="op">{</span> <span class="op">...</span> <span class="op">}</span></span></code></pre></div>
 <h3 id="42-what-to-fix-in-the-pattern-before-copying-it">4.2 What to fix
 in the pattern before copying it</h3>
-<p>Copy it, but do not copy its blind spot. CORE-33235 escaped because
-the suite asserted decoding and not derivation.</p>
-<p><strong>Rule: for every field the UI renders, assert the predicate
-that produces it, not just that the field parsed.</strong> For Port
-Security that is:</p>
+<p>Copy it, but do not copy its blind spot. The Port Security suite
+asserted that fields <em>decode</em>; CORE-33235 was a field that
+decoded perfectly and was already wrong.</p>
+<p><strong>Rule: assert contradictions between fields inside a single
+payload, not just that each field parsed.</strong> A contradiction check
+does not require knowing which value is correct, which is exactly why it
+survives a bad fixture. For Port Security:</p>
 <blockquote>
-<p>For each port, <code>enabled</code> equals the node-reported state
-for <strong>that</strong> port — never a paired port, never a
-network-level flag.</p>
+<p>Within one <code>port_security</code> object, <code>enabled</code> is
+never <code>true</code> when <code>capable</code> is <code>false</code>,
+when live <code>status</code> is <code>DISABLED</code>, or when the port
+is the WAN port.</p>
 </blockquote>
-<p>Add that test to both platforms. It is a handful of lines and it
-closes a demonstrated gap in the pattern we are asking other teams to
-adopt.</p>
+<p>The last clause has a wrinkle worth knowing before you write it:
+<code>is_wan_port</code> is <strong>not present in the connections-view
+payload</strong> — it lives only in the network-poll model. So the WAN
+clause either needs cloud to add the field to the connections view (the
+better fix) or has to be asserted at a level where both models are in
+scope.</p>
+<p>Add the <code>capable</code> and <code>status</code> clauses to both
+platforms now; they need nothing from cloud. It is a handful of lines
+and it closes a demonstrated gap in the pattern we are asking other
+teams to adopt.</p>
 <h3
 id="43-the-cloud-side-equivalent-scala-no-broker--recommended-starting-point">4.3
 The cloud-side equivalent (Scala, no broker) — <strong>recommended
@@ -1428,9 +1514,20 @@ broker, no CI change</td>
 </tr>
 <tr>
 <td><strong>0b</strong></td>
-<td>Add the CORE-33235 per-port derivation test on iOS + Android</td>
+<td>Add the CORE-33235 cross-field contradiction test on iOS + Android
+(<code>capable</code> and <code>status</code> clauses)</td>
 <td>~1 h each</td>
 <td>Mobile / QAE</td>
+</tr>
+<tr>
+<td><strong>0c</strong></td>
+<td><strong>Cloud-side fix for CORE-33235</strong> — gate
+<code>enabled</code> in <code>PortSecurityView</code> on
+<code>capable</code> + live status + not-WAN, or stop deriving it from
+the persisted flag. This is the actual fix; 0b only stops the client
+rendering a bad value</td>
+<td>TBD</td>
+<td>Cloud</td>
 </tr>
 <tr>
 <td><strong>1</strong></td>
