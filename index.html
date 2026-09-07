@@ -53,21 +53,35 @@
 </head>
 <body>
 <h1>Quality Reports</h1>
-<p class="subtitle">Published QA reports and analyses for eero Core Engineering.</p>
+<p class="subtitle">Published QA reports and analyses for eero Core Engineering. Latest: the <a href="2026-08-31/" style="color: var(--accent);">August 31, 2026 refresh</a>.</p>
 
 <ul class="report-list">
+  <li>
+    <a href="2026-08-31/contract-integration-test-gap-analysis.html">
+      <div class="report-date">August 31, 2026 — refresh</div>
+      <div class="report-title">Contract & Integration Test Gap Analysis (August snapshot)</div>
+      <div class="report-desc">6-week refresh over 325 CORE bugs (2026-07-21 → 2026-08-31). 48 categorized, 24 of them P0/P1. The rate is flat at 8.0/wk across three snapshots; Speedtest overrides — target #1 in July — produced 7 more bugs; Multi-WAN is the new highest-volume boundary with 9 P0s. Documents why CORE-33235 escaped the shipped tests.</div>
+    </a>
+  </li>
+  <li>
+    <a href="2026-08-31/contract-integration-testing-implementation-guide.html">
+      <div class="report-date">August 31, 2026 — handoff</div>
+      <div class="report-title">Contract & Integration Testing — Implementation Guide</div>
+      <div class="report-desc">Cloud Engineering handoff. Consolidates the four May–June Pact documents and presents two approaches side by side: golden-fixture contract tests (shipped, zero dependencies) and Pact consumer-driven contracts, with a decision table mapped to the August bug evidence. Environment facts re-verified against eero-inc/cloud.</div>
+    </a>
+  </li>
   <li>
     <a href="2026-07-20/contract-integration-test-gap-analysis.html">
       <div class="report-date">July 20, 2026 — refresh</div>
       <div class="report-title">Contract & Integration Test Gap Analysis (July snapshot)</div>
-      <div class="report-desc">3-week refresh over 167 CORE bugs (2026-06-27 → 2026-07-20). Same three failure categories, 24 fresh preventable examples, MACSec design shipped — Android merged (PR #13181), iOS in review (PR #14285).</div>
+      <div class="report-desc">3-week refresh over 167 CORE bugs (2026-06-27 → 2026-07-20). Same three failure categories, 24 fresh preventable examples, MACSec design shipped on both platforms — Android PR #13181 (2026-07-30) and iOS PR #14285 (2026-08-03).</div>
     </a>
   </li>
   <li>
     <a href="2026-07-20/macsec-contract-test-case-study.html">
       <div class="report-date">July 20, 2026 — refresh</div>
       <div class="report-title">MACsec Port Security — Contract Test Case Study (updated)</div>
-      <div class="report-desc">Android: 12 CT + 3 real INT tests, merged (PR #13181), running in the unit suite on every PR. iOS: 12 CT + 3 real INT tests, in review (PR #14285). Updated with July target-interface expansion table.</div>
+      <div class="report-desc">The reference implementation, both platforms merged: 12 CT + 3 real INT tests each, running in the unit suite on every PR. Includes the execution runbook and the per-test-class → bug-pattern mapping.</div>
     </a>
   </li>
   <li>
