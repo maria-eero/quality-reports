@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contract &amp; Integration Testing — Implementation Guide</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #9ca3af;
+    --accent: #6366f1;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .layout { display: flex; align-items: flex-start; max-width: 1500px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: flex-start;
+    width: 300px; flex: 0 0 300px;
+    max-height: 100vh; overflow-y: auto;
+    padding: 32px 20px 32px 24px;
+    border-right: 1px solid var(--border);
+    font-size: 0.82rem;
+  }
+  nav.toc > ul { list-style: none; margin: 0; }
+  nav.toc ul ul { list-style: none; margin-left: 12px; }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block; padding: 4px 8px; border-radius: 5px;
+    color: var(--muted); text-decoration: none; border-left: 2px solid transparent;
+  }
+  nav.toc a:hover { color: var(--text); background: rgba(99,102,241,0.08); text-decoration: none; }
+  nav.toc a.here { color: var(--accent); border-left-color: var(--accent); background: rgba(99,102,241,0.08); }
+  nav.toc::before {
+    content: 'Contents';
+    display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 12px; padding-left: 8px;
+  }
+  main { flex: 1 1 auto; min-width: 0; padding: 32px 40px 120px; max-width: 1000px; }
+
+  h1 { font-size: 1.9rem; margin-bottom: 16px; line-height: 1.25; }
+  h2 {
+    font-size: 1.3rem; margin: 44px 0 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border); scroll-margin-top: 20px;
+  }
+  h3 { font-size: 1.05rem; margin: 30px 0 10px; color: #c7d2fe; scroll-margin-top: 20px; }
+  h4 { font-size: 0.95rem; margin: 22px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; scroll-margin-top: 20px; }
+  p { margin-bottom: 14px; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 6px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0 22px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: bottom; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(99,102,241,0.05); }
+
+  code {
+    background: rgba(255,255,255,0.07); padding: 1.5px 5px; border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em;
+  }
+  pre {
+    background: #12141c; border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; margin: 16px 0 22px;
+    font-size: 0.82rem; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+  pre.mermaid, .mermaid { background: #12141c; text-align: center; }
+
+  blockquote {
+    background: rgba(239,68,68,0.07); border-left: 3px solid var(--red);
+    padding: 14px 20px; border-radius: 0 8px 8px 0; margin: 20px 0; font-size: 0.9rem;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+  blockquote strong { color: #fca5a5; }
+
+  .subtitle-block { color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
+
+  /* Syntax highlighting (pandoc skylighting) — dark */
+  code span.kw { color: #c792ea; }
+  code span.dt, code span.dv { color: #ffcb6b; }
+  code span.st, code span.ss, code span.vs { color: #c3e88d; }
+  code span.co { color: #6b7280; font-style: italic; }
+  code span.dl { color: #c3e88d; }
+  code span.fu { color: #82aaff; }
+  code span.at { color: #f78c6c; }
+  code span.cn, code span.bn, code span.fl { color: #f78c6c; }
+  code span.op { color: #89ddff; }
+  code span.va { color: #eeffff; }
+  code span.an { color: #c792ea; }
+  code span.er, code span.al { color: var(--red); }
+
+  @media (max-width: 1100px) {
+    .layout { display: block; }
+    nav.toc { position: static; width: auto; max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 20px 80px; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+<ul>
+<li><a href="#contract--integration-testing--implementation-guide"
+id="toc-contract--integration-testing--implementation-guide">Contract
+&amp; Integration Testing — Implementation Guide</a>
+<ul>
+<li><a href="#how-to-read-this-document"
+id="toc-how-to-read-this-document">How to read this document</a></li>
+<li><a href="#1-why-this-exists" id="toc-1-why-this-exists">1. Why this
+exists</a></li>
+<li><a href="#2-what-already-ships-on-mobile"
+id="toc-2-what-already-ships-on-mobile">2. What already ships on
+mobile</a>
+<ul>
+<li><a href="#what-shipped-and-what-it-missed"
+id="toc-what-shipped-and-what-it-missed">What shipped, and what it
+missed</a></li>
+</ul></li>
+<li><a href="#3-the-two-approaches-side-by-side"
+id="toc-3-the-two-approaches-side-by-side">3. The two approaches, side
+by side</a>
+<ul>
+<li><a href="#which-to-use-for-which-bug-class"
+id="toc-which-to-use-for-which-bug-class">Which to use for which bug
+class</a></li>
+</ul></li>
+<li><a href="#4-approach-a--golden-fixture-contract-tests"
+id="toc-4-approach-a--golden-fixture-contract-tests">4. Approach A —
+Golden-fixture contract tests</a>
+<ul>
+<li><a href="#41-the-pattern-as-shipped"
+id="toc-41-the-pattern-as-shipped">4.1 The pattern, as shipped</a></li>
+<li><a href="#42-what-to-fix-in-the-pattern-before-copying-it"
+id="toc-42-what-to-fix-in-the-pattern-before-copying-it">4.2 What to fix
+in the pattern before copying it</a></li>
+<li><a
+href="#43-the-cloud-side-equivalent-scala-no-broker--recommended-starting-point"
+id="toc-43-the-cloud-side-equivalent-scala-no-broker--recommended-starting-point">4.3
+The cloud-side equivalent (Scala, no broker) — <strong>recommended
+starting point</strong></a></li>
+</ul></li>
+<li><a href="#5-approach-b--pact-consumer-driven-contracts"
+id="toc-5-approach-b--pact-consumer-driven-contracts">5. Approach B —
+Pact consumer-driven contracts</a>
+<ul>
+<li><a href="#51-what-pact-is" id="toc-51-what-pact-is">5.1 What Pact
+is</a></li>
+<li><a href="#52-what-is-in-a-contract"
+id="toc-52-what-is-in-a-contract">5.2 What is in a contract</a></li>
+<li><a href="#53-consumer-side--ios-pactswift"
+id="toc-53-consumer-side--ios-pactswift">5.3 Consumer side — iOS
+(PactSwift)</a></li>
+<li><a href="#54-consumer-side--android-pact-jvm-consumer"
+id="toc-54-consumer-side--android-pact-jvm-consumer">5.4 Consumer side —
+Android (pact-jvm consumer)</a></li>
+<li><a href="#55-publishing-the-contract"
+id="toc-55-publishing-the-contract">5.5 Publishing the contract</a></li>
+<li><a href="#56-provider-side--cloud"
+id="toc-56-provider-side--cloud">5.6 Provider side — cloud</a></li>
+<li><a href="#57-provider-states--the-bridge-between-mobile-and-cloud"
+id="toc-57-provider-states--the-bridge-between-mobile-and-cloud">5.7
+Provider states — the bridge between mobile and cloud</a></li>
+<li><a href="#58-the-broker" id="toc-58-the-broker">5.8 The
+broker</a></li>
+<li><a href="#59-ci-integration" id="toc-59-ci-integration">5.9 CI
+integration</a></li>
+<li><a href="#510-webhook-optional" id="toc-510-webhook-optional">5.10
+Webhook (optional)</a></li>
+<li><a href="#511-technical-reference"
+id="toc-511-technical-reference">5.11 Technical reference</a></li>
+</ul></li>
+<li><a href="#6-what-contract-testing-catches--and-what-it-does-not"
+id="toc-6-what-contract-testing-catches--and-what-it-does-not">6. What
+contract testing catches — and what it does not</a>
+<ul>
+<li><a href="#catches" id="toc-catches">Catches</a></li>
+<li><a href="#does-not-catch" id="toc-does-not-catch">Does NOT
+catch</a></li>
+<li><a href="#mapped-to-the-august-evidence"
+id="toc-mapped-to-the-august-evidence">Mapped to the August
+evidence</a></li>
+</ul></li>
+<li><a
+href="#7-integration-tests--the-part-contract-testing-does-not-cover"
+id="toc-7-integration-tests--the-part-contract-testing-does-not-cover">7.
+Integration tests — the part contract testing does not cover</a></li>
+<li><a href="#8-rollout-and-effort" id="toc-8-rollout-and-effort">8.
+Rollout and effort</a>
+<ul>
+<li><a href="#recommended-sequence"
+id="toc-recommended-sequence">Recommended sequence</a></li>
+<li><a href="#effort-estimate-provider-side"
+id="toc-effort-estimate-provider-side">Effort estimate (provider
+side)</a></li>
+<li><a href="#success-metrics" id="toc-success-metrics">Success
+metrics</a></li>
+</ul></li>
+<li><a href="#9-risks-and-mitigations"
+id="toc-9-risks-and-mitigations">9. Risks and mitigations</a></li>
+<li><a href="#appendix-a--verified-environment-facts"
+id="toc-appendix-a--verified-environment-facts">Appendix A — Verified
+environment facts</a></li>
+<li><a href="#appendix-b--industry-evidence"
+id="toc-appendix-b--industry-evidence">Appendix B — Industry
+evidence</a>
+<ul>
+<li><a href="#case-studies-pact-foundation"
+id="toc-case-studies-pact-foundation">Case studies (Pact
+Foundation)</a></li>
+<li><a href="#industry-statistics" id="toc-industry-statistics">Industry
+statistics</a></li>
+<li><a href="#sources" id="toc-sources">Sources</a></li>
+</ul></li>
+<li><a href="#appendix-c--open-questions-for-cloud-engineering"
+id="toc-appendix-c--open-questions-for-cloud-engineering">Appendix C —
+Open questions for Cloud Engineering</a></li>
+</ul></li>
+</ul>
+</nav>
+<main>
+<h1 id="contract--integration-testing--implementation-guide">Contract
+&amp; Integration Testing — Implementation Guide</h1>
+<p><strong>Author:</strong> Maria Rebelo (QAE, Core Engineering)
+<strong>Date:</strong> 2026-08-31 <strong>Audience:</strong> Cloud
+Engineering (primary) · iOS and Android (reference)
+<strong>Status:</strong> Handoff document. Two approaches, documented to
+the point where either can be started without another meeting.</p>
+<p><strong>Evidence base:</strong> <a
+href="./contract-integration-test-gap-analysis.html">Contract &amp;
+Integration Test Gap Analysis — August 2026</a>. Read the Executive
+Summary and the "Where the shipped tests hit their ceiling" tab first if
+you want the <em>why</em>; this document is the <em>how</em>.</p>
+<hr />
+<h2 id="how-to-read-this-document">How to read this document</h2>
+<p>This is a consolidation of four earlier documents plus what has been
+learned since shipping the reference implementation:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Date</th>
+<th>What it contributed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Pact Contract Testing — Technical Overview</code></td>
+<td>2026-06-03</td>
+<td>The spine: flow, contract anatomy, provider states, broker,
+<code>can-i-deploy</code>, catches/doesn't, industry evidence</td>
+</tr>
+<tr>
+<td><code>Pact Provider Verification: Cloud (revised v2)</code></td>
+<td>2026-06-03</td>
+<td>Provider side — library, test placement, verification example, CI
+job, state options</td>
+</tr>
+<tr>
+<td><code>RFC: Pact Contract Testing for Mobile</code></td>
+<td>2026-05-27</td>
+<td>Consumer CI wiring, rollout phases, success metrics, risks</td>
+</tr>
+<tr>
+<td><code>Pact Provider Verification — Cloud Repo</code></td>
+<td>2026-05-27</td>
+<td>Rollout table and effort estimate (dropped from the v2
+revision)</td>
+</tr>
+</tbody>
+</table>
+<p>Everything factual about <code>eero-inc/cloud</code> has been
+re-verified against the repo at <code>main</code> for this document.
+<strong>Three claims from the May RFCs were stale and are corrected
+here</strong> — see <a
+href="#appendix-a--verified-environment-facts">Appendix A</a>. Two
+implementation gaps the earlier docs did not cover are called out inline
+and flagged <strong>NEW</strong>.</p>
+<hr />
+<h2 id="1-why-this-exists">1. Why this exists</h2>
+<p>Between 2026-07-21 and 2026-08-31, CORE filed 325 bugs. <strong>48
+were contract, state-sync, or platform-parity failures — 24 of them P0
+or P1.</strong> The rate has held between 7 and 8 per week across three
+consecutive snapshots. It is not improving on its own.</p>
+<p><strong>15 of those 48 are producer-side defects that no client-side
+test can catch.</strong> A handful, verbatim from the tickets:</p>
+<ul>
+<li><strong>CORE-32502</strong> — cloud marks the WAN link
+<code>name</code> field optional; the Apollo GraphQL contract declares
+it required. The Insight query breaks whenever it is absent. <em>Two
+schemas, one field, opposite answers.</em></li>
+<li><strong>CORE-32695</strong> —
+<code>PUT /2.2/networks/:id/settings</code> accepts the string
+<code>"true"</code> for a boolean field, coerces it, stores it,
+<strong>and reboots the network</strong>. <code>null</code> returns 200.
+A number returns 400.</li>
+<li><strong>CORE-32631</strong> — a <code>PUT</code> to a non-existent
+network id returns 200 and persists a real override record.</li>
+<li><strong>CORE-33044</strong> — the <code>/config</code> response
+omits the <code>wan</code> field on the boot path, silently disabling
+Multi-WAN. A later <code>config</code> action returns it correctly.</li>
+<li><strong>CORE-33268</strong> — a gauge emits
+<code>Double.PositiveInfinity</code>; <code>DecimalFormat</code> renders
+the Unicode <code>∞</code> glyph; Telegraf's statsd parser cannot read
+it as float64. Paged PROD.</li>
+<li><strong>CORE-33380</strong> — DynamoDB throttling surfaces as gRPC
+<code>INTERNAL</code> (13) instead of a retryable status. 1,744 of ~171k
+calls in one hour; the alert has flapped 212 times.</li>
+</ul>
+<p>Every one of these is a producer emitting something a consumer cannot
+consume. That is the definition of a contract violation, and it is
+fixable at PR time.</p>
+<hr />
+<h2 id="2-what-already-ships-on-mobile">2. What already ships on
+mobile</h2>
+<p>Contract + integration tests for MACsec Port Security are
+<strong>merged on both platforms</strong> and run in the standard unit
+suite on every PR, with <strong>zero new dependencies and zero new CI
+jobs</strong>:</p>
+<ul>
+<li><strong>Android</strong> — PR #13181, merged 2026-07-30, commit
+<code>dd9f38f4</code>.
+<code>app/src/test/kotlin/com/eero/android/contract/portsecurity/{PortSecurityContractTest.kt, PortSecurityFixtures.kt}</code>
+— 12 <code>CT-*</code> tests; 3 <code>INT-001..003</code> in
+<code>PortDetailViewModelTest.kt</code></li>
+<li><strong>iOS</strong> — PR #14285, merged 2026-08-03, commit
+<code>74221e2c</code>.
+<code>Eero/EeroNetworking/Tests/Port Security Tests/PortSecurityContractTests.swift</code>
+— 12 <code>@Test</code> scenarios; 3 <code>INT-001..003</code> in
+<code>PortDetailsTests.swift</code></li>
+</ul>
+<p>An earlier iteration gated these behind an opt-in
+<code>test:contract</code> job with a diff-scoped selection script and a
+<code>run-contract-tests</code> label. That was dropped after review
+with an Android engineer: the tests are fast, deterministic and
+dependency-free, so there is no reason to treat them differently from
+any other unit test.</p>
+<p><strong>That decision does not transfer to Pact.</strong> Pact
+provider verification needs a broker and a running application instance,
+so it is neither fast nor dependency-free. Section 6.7 treats its
+trigger as an open question rather than a settled one.</p>
+<h3 id="what-shipped-and-what-it-missed">What shipped, and what it
+missed</h3>
+<p><strong>CORE-33235</strong> landed on 2026-08-25 against MACsec Port
+Security — the interface with 12 contract tests on each platform. The
+tests passed. The bug shipped.</p>
+<p>The app renders Port Security as <code>enabled</code> on a port where
+neither the node's bookshelf nor cloud <code>state_data</code> reports
+MACsec, and where cloud reports the port as not MACsec-capable. It
+derives <code>enabled</code> from the <strong>pair-facing</strong> port.
+The tests asserted that the client <em>decodes</em> the payload
+correctly; the client decoded correctly and then derived the wrong
+thing. The fixture set had no case for that hardware topology.</p>
+<p>Two lessons that shape this document:</p>
+<ol type="1">
+<li>A decode-boundary fixture test validates the client against a
+recording, and <strong>a recording cannot disagree with you</strong>.
+Fixture coverage is bounded by imagination — the same weakness as mocks,
+shared between platforms rather than per-developer.</li>
+<li>Cloud already held the correct answer. A contract the
+<strong>provider</strong> verifies would have failed in cloud CI, where
+the truth lived.</li>
+</ol>
+<p>That is the case for Approach B existing at all, and the reason this
+guide is not simply "do what mobile did."</p>
+<hr />
+<h2 id="3-the-two-approaches-side-by-side">3. The two approaches, side
+by side</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><strong>Approach A — Golden-fixture contract tests</strong></th>
+<th><strong>Approach B — Pact consumer-driven contracts</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>What is asserted</strong></td>
+<td>A recorded payload parses into the expected model, and derived state
+matches expectation</td>
+<td>The provider's live response satisfies the consumer's declared
+expectation</td>
+</tr>
+<tr>
+<td><strong>Who holds the truth</strong></td>
+<td>Whoever recorded the fixture</td>
+<td>The provider, at verification time</td>
+</tr>
+<tr>
+<td><strong>New dependencies</strong></td>
+<td>None</td>
+<td>pact-jvm (provider), PactSwift (iOS), pact-jvm consumer (Android),
+broker</td>
+</tr>
+<tr>
+<td><strong>New infrastructure</strong></td>
+<td>None</td>
+<td>Pact Broker (Pactflow SaaS or self-hosted)</td>
+</tr>
+<tr>
+<td><strong>Runs where</strong></td>
+<td>Existing unit suite, every PR</td>
+<td>Dedicated CI job; needs a running app instance</td>
+</tr>
+<tr>
+<td><strong>Runtime</strong></td>
+<td>Milliseconds</td>
+<td>Seconds to minutes (app start + replay)</td>
+</tr>
+<tr>
+<td><strong>Catches a stale fixture</strong></td>
+<td>❌ No — the fixture <em>is</em> the assertion</td>
+<td>✅ Yes — that is the whole point</td>
+</tr>
+<tr>
+<td><strong>Catches provider-side drift</strong></td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Catches iOS/Android divergence</strong></td>
+<td>✅ Yes, cheaply — its strongest use</td>
+<td>Partly — only where both declare the same interaction</td>
+</tr>
+<tr>
+<td><strong>Catches write-path defects</strong> (persist-orphan, no-op
+save)</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Setup cost</strong></td>
+<td>Hours</td>
+<td>~2–3 days initial, then ~1–2 h per endpoint</td>
+</tr>
+<tr>
+<td><strong>Proven here?</strong></td>
+<td>✅ Merged and running on both platforms</td>
+<td>❌ Not adopted anywhere in the codebase</td>
+</tr>
+</tbody>
+</table>
+<h3 id="which-to-use-for-which-bug-class">Which to use for which bug
+class</h3>
+<p>Mapped against the 48 categorized bugs in the August window:</p>
+<table>
+<thead>
+<tr>
+<th>Interface / defect class</th>
+<th>Approach A reaches it?</th>
+<th>Approach B needed?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>iOS/Android label, localization and row-set parity (17 bugs)</td>
+<td>✅ Yes — cheapest and best fit</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Response nullability and decode tolerance (CORE-32415)</td>
+<td>✅ Yes</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>Enum exhaustiveness over hw-model, client half (CORE-33269)</td>
+<td>✅ Yes</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Enum exhaustiveness, cloud half (CORE-32903)</td>
+<td>❌ No — producer-side</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>Field optionality disagreement across two schemas (CORE-32502)</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>Request-validation defects (CORE-32695, CORE-32631)</td>
+<td>❌ No — a fixture cannot reject a write</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>Boot-path response omitting a field (CORE-33044)</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>Error-code and status mapping (CORE-33380, CORE-32964)</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td>Emit-boundary format (CORE-33268)</td>
+<td>❌ No</td>
+<td>❌ Neither — this is a plain unit test at the emit site</td>
+</tr>
+<tr>
+<td><code>active</code> flag vs actual default route (CORE-32917, 33148,
+33341)</td>
+<td>❌ No</td>
+<td>❌ Neither — needs an <strong>integration</strong> test, §7</td>
+</tr>
+<tr>
+<td>Write→read round-trips (CORE-33320, 32463, 33188)</td>
+<td>❌ No</td>
+<td>❌ Neither — needs an <strong>integration</strong> test, §7</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The honest read:</strong> Approach A is the right default for
+the client side and covers the largest single category (parity, 17 bugs)
+at near-zero cost. Approach B is what makes the cloud side of the
+boundary answerable. Neither covers the state-sync category — that needs
+integration tests, which §7 addresses separately.</p>
+<p><strong>Recommendation:</strong> adopt both, in this order — Approach
+A on the cloud side for cheap producer-side unit contracts (§4.3),
+Approach B for the two or three highest-churn mobile↔︎cloud interfaces
+(§5), integration tests for the state-sync invariants (§7). Do not start
+with the broker.</p>
+<hr />
+<h2 id="4-approach-a--golden-fixture-contract-tests">4. Approach A —
+Golden-fixture contract tests</h2>
+<h3 id="41-the-pattern-as-shipped">4.1 The pattern, as shipped</h3>
+<p>One consolidated JSON file holds every scenario, keyed by
+contract-test id. Tests load a scenario, parse it <strong>through the
+production decoder</strong>, and assert on the resulting model.</p>
+<p>From <code>PortSecurityFixtures.kt</code> (Android, merged):</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">internal</span> <span class="kw">object</span> PortSecurityFixtures <span class="op">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="kw">const</span> <span class="kw">val</span> <span class="va">FIXTURE_PATH</span> <span class="op">=</span> <span class="st">&quot;fixtures/port_security/scenarios.json&quot;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/**</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">     * Use the app&#39;s GsonFactory so `PortConnectionStatus` (a sealed class with a</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co">     * discriminated `type` field) parses through the same `RuntimeTypeAdapterFactory`</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">     * the production code uses. A plain `Gson()` throws JsonIOException on the</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">     * abstract base type in modern Gson versions.</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">     */</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">val</span> <span class="va">gson</span><span class="op">:</span> Gson <span class="kw">by</span> lazy <span class="op">{</span> GsonFactory<span class="op">.</span>create<span class="op">()</span> <span class="op">}</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span> <span class="kw">val</span> <span class="va">scenarios</span><span class="op">:</span> Map<span class="op">&lt;</span><span class="kw">String</span><span class="op">,</span> JsonObject<span class="op">&gt;</span> <span class="kw">by</span> lazy <span class="op">{</span> loadScenarios<span class="op">()</span> <span class="op">}</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fun</span> <span class="fu">payloadOf</span><span class="op">(</span><span class="va">scenarioId</span><span class="op">:</span> <span class="dt">String</span><span class="op">):</span> <span class="dt">JsonObject</span> <span class="op">{</span> <span class="co">/* strips `description`, returns payload */</span> <span class="op">}</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">inline</span> <span class="kw">fun</span> <span class="op">&lt;</span><span class="kw">reified</span> <span class="dt">T</span><span class="op">&gt;</span> <span class="fu">parseAs</span><span class="op">(</span><span class="va">scenarioId</span><span class="op">:</span> <span class="dt">String</span><span class="op">):</span> <span class="dt">T</span> <span class="op">=</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>        gson<span class="op">.</span>fromJson<span class="op">(</span>payloadOf<span class="op">(</span>scenarioId<span class="op">),</span> T<span class="op">::</span><span class="kw">class</span>.java)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>Two details that matter more than they look:</p>
+<ol type="1">
+<li><strong>Parse through the production decoder, not a fresh
+one.</strong> The comment above is load-bearing: a plain
+<code>Gson()</code> behaves differently from
+<code>GsonFactory.create()</code> on sealed types. A contract test that
+builds its own parser tests the parser, not the contract.</li>
+<li><strong>Scenario ids map to a plan.</strong> Each key corresponds to
+a <code>CT-</code> id in the automation plan, with a
+<code>README.md</code> holding the mapping. That is what makes the suite
+auditable rather than a pile of JSON.</li>
+</ol>
+<p>Tests then read as executable specifications:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">@Test</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fun</span> `<span class="fu">CT</span>-001 <span class="fu">port</span> <span class="fu">not</span> <span class="fu">MACsec</span>-<span class="fu">capable</span> <span class="fu">parses</span> <span class="fu">with</span> <span class="fu">capable</span><span class="op">=</span><span class="kw">false</span><span class="op">,</span> status<span class="op">=</span>DISABLED`<span class="op">()</span> <span class="op">{</span> <span class="op">...</span> <span class="op">}</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">@Test</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">fun</span> `<span class="fu">CT</span>-002 <span class="fu">capable</span>, <span class="fu">security</span> <span class="fu">off</span>, <span class="fu">device</span> <span class="fu">connected</span> <span class="fu">parses</span> <span class="fu">with</span> <span class="fu">capable</span><span class="op">=</span><span class="kw">true</span><span class="op">,</span> enabled<span class="op">=</span><span class="kw">false</span><span class="op">,</span> DISABLED`<span class="op">()</span> <span class="op">{</span> <span class="op">...</span> <span class="op">}</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">@Test</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">fun</span> `<span class="fu">CT</span>-013 <span class="fu">POST</span> <span class="fu">toggle</span> <span class="fu">error</span> <span class="fu">parses</span> <span class="fu">meta</span> <span class="fu">with</span> <span class="fu">non</span>-200 <span class="fu">code</span> <span class="fu">and</span> <span class="fu">mapped</span> <span class="fu">EeroError</span>`<span class="op">()</span> <span class="op">{</span> <span class="op">...</span> <span class="op">}</span></span></code></pre></div>
+<h3 id="42-what-to-fix-in-the-pattern-before-copying-it">4.2 What to fix
+in the pattern before copying it</h3>
+<p>Copy it, but do not copy its blind spot. CORE-33235 escaped because
+the suite asserted decoding and not derivation.</p>
+<p><strong>Rule: for every field the UI renders, assert the predicate
+that produces it, not just that the field parsed.</strong> For Port
+Security that is:</p>
+<blockquote>
+<p>For each port, <code>enabled</code> equals the node-reported state
+for <strong>that</strong> port — never a paired port, never a
+network-level flag.</p>
+</blockquote>
+<p>Add that test to both platforms. It is a handful of lines and it
+closes a demonstrated gap in the pattern we are asking other teams to
+adopt.</p>
+<h3
+id="43-the-cloud-side-equivalent-scala-no-broker--recommended-starting-point">4.3
+The cloud-side equivalent (Scala, no broker) — <strong>recommended
+starting point</strong></h3>
+<p>Approach A translates to the provider side, where it catches a real
+class of the August bugs with no new dependencies at all. The house test
+framework is ScalaTest 3.2.19 (verified — see Appendix A), so these are
+ordinary specs.</p>
+<p><strong>Pattern 1 — request validation.</strong> Directly targets
+CORE-32695 and CORE-32631:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> NetworkSettingsContractSpec <span class="kw">extends</span> AnyFunSpec <span class="kw">with</span> Matchers <span class="op">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">describe</span><span class="op">(</span><span class="st">&quot;PUT /2.2/networks/:id/settings — nat_port_randomization&quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// CORE-32695: the string &quot;true&quot; was accepted, coerced, stored, and rebooted the network</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="fu">it</span><span class="op">(</span><span class="st">&quot;rejects a non-boolean value with 400 and performs no side effect&quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">forAll</span><span class="op">(</span><span class="fu">Table</span><span class="op">(</span><span class="st">&quot;payload&quot;</span><span class="op">,</span> <span class="st">&quot;&quot;&quot;&quot;true&quot;&quot;&quot;&quot;</span><span class="op">,</span> <span class="st">&quot;&quot;&quot;&quot;false&quot;&quot;&quot;&quot;</span><span class="op">,</span> <span class="st">&quot;1&quot;</span><span class="op">,</span> <span class="st">&quot;0&quot;</span><span class="op">,</span> <span class="st">&quot;null&quot;</span><span class="op">))</span> <span class="op">{</span> raw <span class="op">=&gt;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">val</span> res <span class="op">=</span> <span class="fu">route</span><span class="op">(</span>app<span class="op">,</span> <span class="fu">settingsPut</span><span class="op">(</span>networkId<span class="op">,</span> <span class="ss">s&quot;&quot;&quot;</span><span class="st">{&quot;nat_port_randomization&quot;: </span><span class="ss">$raw</span><span class="st">}</span><span class="ss">&quot;&quot;&quot;</span><span class="op">)).</span>get</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">status</span><span class="op">(</span>res<span class="op">)</span> shouldBe BAD_REQUEST</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        <span class="fu">rebootsIssuedFor</span><span class="op">(</span>networkId<span class="op">)</span> shouldBe <span class="dv">0</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>      <span class="op">}</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">it</span><span class="op">(</span><span class="st">&quot;accepts a real boolean&quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>      <span class="fu">status</span><span class="op">(</span><span class="fu">route</span><span class="op">(</span>app<span class="op">,</span> <span class="fu">settingsPut</span><span class="op">(</span>networkId<span class="op">,</span> <span class="st">&quot;&quot;&quot;{&quot;nat_port_randomization&quot;: true}&quot;&quot;&quot;</span><span class="op">)).</span>get<span class="op">)</span> shouldBe OK</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><strong>Pattern 2 — enum exhaustiveness.</strong> Directly targets
+CORE-32903, and would have caught its client-side twin CORE-33269 at the
+source:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> HwModelCapabilityContractSpec <span class="kw">extends</span> AnyFunSpec <span class="kw">with</span> Matchers <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">// CORE-32903: Dejavu was absent from wlanRateLimitPolicyCapable with no firmware gate,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">// so any PUT subnet carrying a ratelimitConfig was rejected InvalidRateLimitParameters.</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">it</span><span class="op">(</span><span class="st">&quot;names every hw model explicitly in every capability table&quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">val</span> undecided <span class="op">=</span> HwModel<span class="op">.</span>values<span class="op">.</span>filterNot <span class="op">{</span> m <span class="op">=&gt;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>      HwModelCapabilityService<span class="op">.</span>capabilityTables<span class="op">.</span><span class="fu">forall</span><span class="op">(</span>_<span class="op">.</span><span class="fu">isDefinedFor</span><span class="op">(</span>m<span class="op">))</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">withClue</span><span class="op">(</span><span class="st">&quot;models missing an explicit allow/deny — adding a model must not default silently: &quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>      undecided shouldBe empty</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>The point of Pattern 2 is that <strong>it fails when someone adds a
+new hardware model</strong> until every capability table has been
+reviewed. That converts a recurring class of bug into a compile-time-ish
+gate. It needs <code>capabilityTables</code> to be enumerable, which may
+mean a small refactor — that is the actual work item, and it is worth
+it.</p>
+<p><strong>Pattern 3 — status-code mapping.</strong> Targets CORE-33380
+and CORE-32964:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">it</span><span class="op">(</span><span class="st">&quot;maps a throttled downstream to a retryable gRPC status, never INTERNAL&quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">val</span> res <span class="op">=</span> <span class="fu">withDownstreamFailure</span><span class="op">(</span>ThrottlingException<span class="op">)</span> <span class="op">{</span> <span class="fu">getNetworkNodes</span><span class="op">(</span>networkId<span class="op">)</span> <span class="op">}</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  res<span class="op">.</span>getStatus<span class="op">.</span>getCode <span class="fu">should</span> <span class="op">(</span><span class="fu">be</span><span class="op">(</span>Status<span class="op">.</span>Code<span class="op">.</span>RESOURCE_EXHAUSTED<span class="op">)</span> or <span class="fu">be</span><span class="op">(</span>Status<span class="op">.</span>Code<span class="op">.</span>UNAVAILABLE<span class="op">))</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  res<span class="op">.</span>getStatus<span class="op">.</span>getCode should not be Status<span class="op">.</span>Code<span class="op">.</span><span class="ex">INTERNAL</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><strong>Effort:</strong> hours per pattern. No dependencies, no
+broker, no CI changes — these run in the existing test job for their
+module. <strong>If you do nothing else from this document, do
+§4.3.</strong></p>
+<hr />
+<h2 id="5-approach-b--pact-consumer-driven-contracts">5. Approach B —
+Pact consumer-driven contracts</h2>
+<h3 id="51-what-pact-is">5.1 What Pact is</h3>
+<p>Pact keeps the mobile apps and the cloud API compatible without
+running them together in an integration environment. It catches breaking
+contract changes — renamed fields, removed endpoints, changed response
+shapes — at PR time.</p>
+<table>
+<thead>
+<tr>
+<th>Side</th>
+<th>Who</th>
+<th>What they do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Consumer</strong> (mobile)</td>
+<td>iOS / Android repos</td>
+<td>Write tests declaring: "I call this endpoint with these params and
+expect this response shape"</td>
+</tr>
+<tr>
+<td><strong>Provider</strong> (cloud)</td>
+<td><code>eero-inc/cloud</code></td>
+<td>Run verification proving: "Yes, I actually return what mobile
+expects"</td>
+</tr>
+</tbody>
+</table>
+<p>The flow:</p>
+<pre><code>1. Mobile writes a consumer test
+2. Test generates a contract file (JSON &quot;pact&quot;)
+3. Contract is published to the Pact Broker (shared registry)
+4. Cloud CI pulls contracts from the Broker
+5. Cloud replays each interaction against a running instance
+6. Results are published back to the Broker
+7. &quot;Can I deploy?&quot; check gates both sides before merge/release</code></pre>
+<pre class="mermaid"><code>sequenceDiagram
+    participant M as Mobile (Consumer)
+    participant B as Pact Broker
+    participant C as Cloud (Provider)
+
+    M-&gt;&gt;M: Write consumer test
+    M-&gt;&gt;M: Test generates contract (JSON pact)
+    M-&gt;&gt;B: Publish contract (tagged by SHA + branch)
+    M-&gt;&gt;B: can-i-deploy? (is current cloud compatible?)
+    B--&gt;&gt;M: pass / fail
+
+    C-&gt;&gt;B: Pull contracts for &quot;eero-cloud&quot;
+    C-&gt;&gt;C: Replay each interaction against running app
+    C-&gt;&gt;B: Publish verification results
+    C-&gt;&gt;B: can-i-deploy? (do I still satisfy mobile?)
+    B--&gt;&gt;C: pass / fail</code></pre>
+<h3 id="52-what-is-in-a-contract">5.2 What is in a contract</h3>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;provider&quot;</span><span class="fu">:</span> <span class="st">&quot;eero-cloud&quot;</span><span class="fu">,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;consumer&quot;</span><span class="fu">:</span> <span class="st">&quot;eero-ios&quot;</span><span class="fu">,</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;interactions&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">{</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;description&quot;</span><span class="fu">:</span> <span class="st">&quot;a request for user networks&quot;</span><span class="fu">,</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;providerState&quot;</span><span class="fu">:</span> <span class="st">&quot;user has networks&quot;</span><span class="fu">,</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;request&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;method&quot;</span><span class="fu">:</span> <span class="st">&quot;GET&quot;</span><span class="fu">,</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;path&quot;</span><span class="fu">:</span> <span class="st">&quot;/2.2/account/networks&quot;</span><span class="fu">,</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;headers&quot;</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">&quot;Authorization&quot;</span><span class="fu">:</span> <span class="st">&quot;Bearer token&quot;</span> <span class="fu">}</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">},</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;response&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;status&quot;</span><span class="fu">:</span> <span class="dv">200</span><span class="fu">,</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;headers&quot;</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">&quot;Content-Type&quot;</span><span class="fu">:</span> <span class="st">&quot;application/json&quot;</span> <span class="fu">},</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;body&quot;</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">&quot;networks&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="fu">{</span> <span class="dt">&quot;id&quot;</span><span class="fu">:</span> <span class="st">&quot;string&quot;</span><span class="fu">,</span> <span class="dt">&quot;name&quot;</span><span class="fu">:</span> <span class="st">&quot;string&quot;</span> <span class="fu">}</span><span class="ot">]</span> <span class="fu">},</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;matchingRules&quot;</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">&quot;$.body.networks&quot;</span><span class="fu">:</span> <span class="fu">{</span> <span class="dt">&quot;min&quot;</span><span class="fu">:</span> <span class="dv">1</span> <span class="fu">}</span> <span class="fu">}</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>      <span class="fu">}</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>The response body uses <strong>matching rules</strong>, not exact
+values. Pact checks structure and types, not literal data. This is the
+property that makes it robust where a golden fixture is brittle — and
+also why it does not catch wrong <em>values</em>.</p>
+<h3 id="53-consumer-side--ios-pactswift">5.3 Consumer side — iOS
+(PactSwift)</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode swift"><code class="sourceCode swift"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">PactSwift</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> NetworksContractTest<span class="op">:</span> <span class="dt">XCTestCase</span> <span class="op">{</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">var</span> <span class="va">mockService</span><span class="op">:</span> MockService<span class="op">!</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">override</span> <span class="kw">func</span> <span class="fu">setUp</span><span class="op">()</span> <span class="op">{</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">super</span><span class="op">.</span>setUp<span class="op">()</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>        mockService <span class="op">=</span> MockService<span class="op">(</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>            consumer<span class="op">:</span> <span class="st">&quot;eero-ios&quot;</span><span class="op">,</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>            provider<span class="op">:</span> <span class="st">&quot;eero-cloud&quot;</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>        <span class="op">)</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">func</span> <span class="fu">testGetUserNetworks</span><span class="op">()</span> <span class="op">{</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        mockService</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>given<span class="op">(</span><span class="st">&quot;user has networks&quot;</span><span class="op">)</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>uponReceiving<span class="op">(</span><span class="st">&quot;a request for user networks&quot;</span><span class="op">)</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>withRequest<span class="op">(</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>                method<span class="op">:</span> <span class="op">.</span>GET<span class="op">,</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>                path<span class="op">:</span> <span class="st">&quot;/2.2/account/networks&quot;</span><span class="op">,</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>                headers<span class="op">:</span> <span class="op">[</span><span class="st">&quot;Authorization&quot;</span><span class="op">:</span> <span class="st">&quot;Bearer token&quot;</span><span class="op">]</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>            <span class="op">)</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>willRespondWith<span class="op">(</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>                status<span class="op">:</span> <span class="dv">200</span><span class="op">,</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>                headers<span class="op">:</span> <span class="op">[</span><span class="st">&quot;Content-Type&quot;</span><span class="op">:</span> <span class="st">&quot;application/json&quot;</span><span class="op">],</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>                body<span class="op">:</span> <span class="op">[</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>                    <span class="st">&quot;networks&quot;</span><span class="op">:</span> Matcher<span class="op">.</span>eachLike<span class="op">([</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>                        <span class="st">&quot;id&quot;</span><span class="op">:</span> Matcher<span class="op">.</span>somethingLike<span class="op">(</span><span class="st">&quot;abc123&quot;</span><span class="op">),</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>                        <span class="st">&quot;name&quot;</span><span class="op">:</span> Matcher<span class="op">.</span>somethingLike<span class="op">(</span><span class="st">&quot;Home Network&quot;</span><span class="op">),</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>                        <span class="st">&quot;connected_clients_count&quot;</span><span class="op">:</span> Matcher<span class="op">.</span>integerLike<span class="op">(</span><span class="dv">5</span><span class="op">)</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>                    <span class="op">])</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>                <span class="op">]</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>            <span class="op">)</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Runs the real client against a local mock server</span></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>        mockService<span class="op">.</span>run <span class="op">{</span> baseURL<span class="op">,</span> done <span class="cf">in</span></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> <span class="va">client</span> <span class="op">=</span> NetworksAPIClient<span class="op">(</span>baseURL<span class="op">:</span> baseURL<span class="op">)</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>            client<span class="op">.</span>getUserNetworks <span class="op">{</span> result <span class="cf">in</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>                <span class="cf">switch</span> result <span class="op">{</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>                <span class="cf">case</span> <span class="op">.</span>success<span class="op">(</span><span class="kw">let</span> <span class="va">networks</span><span class="op">):</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>                    XCTAssertFalse<span class="op">(</span>networks<span class="op">.</span>isEmpty<span class="op">)</span></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>                    XCTAssertNotNil<span class="op">(</span>networks<span class="op">.</span>first<span class="op">?.</span>id<span class="op">)</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>                    XCTAssertNotNil<span class="op">(</span>networks<span class="op">.</span>first<span class="op">?.</span>name<span class="op">)</span></span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>                <span class="cf">case</span> <span class="op">.</span>failure<span class="op">(</span><span class="kw">let</span> <span class="va">error</span><span class="op">):</span></span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>                    XCTFail<span class="op">(</span><span class="st">&quot;Expected success, got </span><span class="er">\(</span><span class="st">error)&quot;</span><span class="op">)</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>                done<span class="op">()</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="54-consumer-side--android-pact-jvm-consumer">5.4 Consumer side —
+Android (pact-jvm consumer)</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode kotlin"><code class="sourceCode kotlin"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">au</span><span class="op">.</span><span class="im">com</span><span class="op">.</span><span class="im">dius</span><span class="op">.</span><span class="im">pact</span><span class="op">.</span><span class="im">consumer</span><span class="op">.</span><span class="im">dsl</span><span class="op">.</span><span class="im">PactDslWithProvider</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">au</span><span class="op">.</span><span class="im">com</span><span class="op">.</span><span class="im">dius</span><span class="op">.</span><span class="im">pact</span><span class="op">.</span><span class="im">consumer</span><span class="op">.</span><span class="im">junit5</span><span class="op">.</span><span class="im">PactConsumerTestExt</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">au</span><span class="op">.</span><span class="im">com</span><span class="op">.</span><span class="im">dius</span><span class="op">.</span><span class="im">pact</span><span class="op">.</span><span class="im">consumer</span><span class="op">.</span><span class="im">junit5</span><span class="op">.</span><span class="im">PactTestFor</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">au</span><span class="op">.</span><span class="im">com</span><span class="op">.</span><span class="im">dius</span><span class="op">.</span><span class="im">pact</span><span class="op">.</span><span class="im">consumer</span><span class="op">.</span><span class="im">dsl</span><span class="op">.</span><span class="im">LambdaDsl</span><span class="op">.</span><span class="im">newJsonBody</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">au</span><span class="op">.</span><span class="im">com</span><span class="op">.</span><span class="im">dius</span><span class="op">.</span><span class="im">pact</span><span class="op">.</span><span class="im">core</span><span class="op">.</span><span class="im">model</span><span class="op">.</span><span class="im">V4Pact</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">au</span><span class="op">.</span><span class="im">com</span><span class="op">.</span><span class="im">dius</span><span class="op">.</span><span class="im">pact</span><span class="op">.</span><span class="im">core</span><span class="op">.</span><span class="im">model</span><span class="op">.</span><span class="im">annotations</span><span class="op">.</span><span class="im">Pact</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">org</span><span class="op">.</span><span class="im">junit</span><span class="op">.</span><span class="im">jupiter</span><span class="op">.</span><span class="im">api</span><span class="op">.</span><span class="im">Test</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="im">org</span><span class="op">.</span><span class="im">junit</span><span class="op">.</span><span class="im">jupiter</span><span class="op">.</span><span class="im">api</span><span class="op">.</span><span class="im">extension</span><span class="op">.</span><span class="im">ExtendWith</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="at">@ExtendWith</span><span class="op">(</span>PactConsumerTestExt<span class="op">::</span><span class="kw">class</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>@PactTestFor<span class="op">(</span><span class="va">providerName</span> <span class="op">=</span> <span class="st">&quot;eero-cloud&quot;</span><span class="op">)</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> NetworksContractTest <span class="op">{</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">@Pact</span><span class="op">(</span>consumer <span class="op">=</span> <span class="st">&quot;eero-android&quot;</span><span class="op">)</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fun</span> <span class="fu">getUserNetworksPact</span><span class="op">(</span><span class="va">builder</span><span class="op">:</span> <span class="dt">PactDslWithProvider</span><span class="op">):</span> <span class="dt">V4Pact</span> <span class="op">{</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">return</span> builder</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>given<span class="op">(</span><span class="st">&quot;user has networks&quot;</span><span class="op">)</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>uponReceiving<span class="op">(</span><span class="st">&quot;a request for user networks&quot;</span><span class="op">)</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>path<span class="op">(</span><span class="st">&quot;/2.2/account/networks&quot;</span><span class="op">)</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>method<span class="op">(</span><span class="st">&quot;GET&quot;</span><span class="op">)</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>headers<span class="op">(</span>mapOf<span class="op">(</span><span class="st">&quot;Authorization&quot;</span> to <span class="st">&quot;Bearer token&quot;</span><span class="op">))</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>willRespondWith<span class="op">()</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>status<span class="op">(</span><span class="dv">200</span><span class="op">)</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>headers<span class="op">(</span>mapOf<span class="op">(</span><span class="st">&quot;Content-Type&quot;</span> to <span class="st">&quot;application/json&quot;</span><span class="op">))</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>body<span class="op">(</span>newJsonBody <span class="op">{</span> root <span class="op">-&gt;</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>                root<span class="op">.</span>array<span class="op">(</span><span class="st">&quot;networks&quot;</span><span class="op">)</span> <span class="op">{</span> networks <span class="op">-&gt;</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>                    networks<span class="op">.</span>`<span class="kw">object</span>` <span class="op">{</span> network <span class="op">-&gt;</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>                        network<span class="op">.</span>stringType<span class="op">(</span><span class="st">&quot;id&quot;</span><span class="op">,</span> <span class="st">&quot;abc123&quot;</span><span class="op">)</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>                        network<span class="op">.</span>stringType<span class="op">(</span><span class="st">&quot;name&quot;</span><span class="op">,</span> <span class="st">&quot;Home Network&quot;</span><span class="op">)</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>                        network<span class="op">.</span>integerType<span class="op">(</span><span class="st">&quot;connected_clients_count&quot;</span><span class="op">,</span> <span class="dv">5</span><span class="op">)</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>            <span class="op">}.</span>build<span class="op">())</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>toPact<span class="op">(</span>V4Pact<span class="op">::</span><span class="kw">class</span>.java)</span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    @Test</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>    @PactTestFor<span class="op">(</span><span class="va">pactMethod</span> <span class="op">=</span> <span class="st">&quot;getUserNetworksPact&quot;</span><span class="op">)</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fun</span> testGetUserNetworks<span class="op">(</span><span class="va">mockServer</span><span class="op">:</span> <span class="dt">MockServer</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>        <span class="kw">val</span> <span class="va">client</span> <span class="op">=</span> NetworksAPIClient<span class="op">(</span>baseUrl <span class="op">=</span> mockServer<span class="op">.</span>getUrl<span class="op">())</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>        <span class="kw">val</span> <span class="va">response</span> <span class="op">=</span> client<span class="op">.</span>getUserNetworks<span class="op">()</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>        assertThat<span class="op">(</span>response<span class="op">.</span>isSuccessful<span class="op">).</span>isTrue<span class="op">()</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>        assertThat<span class="op">(</span>response<span class="op">.</span>body<span class="op">()!!.</span>networks<span class="op">).</span>isNotEmpty<span class="op">()</span></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>        assertThat<span class="op">(</span>response<span class="op">.</span>body<span class="op">()!!.</span>networks<span class="op">.</span>first<span class="op">().</span>id<span class="op">).</span>isNotNull<span class="op">()</span></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="55-publishing-the-contract">5.5 Publishing the contract</h3>
+<p>The consumer test generates a pact JSON file locally; a CI step
+publishes it:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># iOS (after test run)</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pact-broker</span> publish ./pacts <span class="dt">\</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--consumer-app-version</span> <span class="va">$CI_COMMIT_SHA</span> <span class="dt">\</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--branch</span> <span class="va">$CI_COMMIT_BRANCH</span> <span class="dt">\</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--broker-base-url</span> <span class="va">$PACT_BROKER_URL</span> <span class="dt">\</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--broker-token</span> <span class="va">$PACT_BROKER_TOKEN</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Android (Gradle plugin handles it)</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="ex">./gradlew</span> pactPublish</span></code></pre></div>
+<h3 id="56-provider-side--cloud">5.6 Provider side — cloud</h3>
+<h4
+id="environment-verified-2026-08-31-against-eero-inccloud-at-main">Environment
+(verified 2026-08-31 against <code>eero-inc/cloud</code> at
+<code>main</code>)</h4>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Value</th>
+<th>vs. May RFCs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scala</td>
+<td><strong>2.13.18</strong></td>
+<td>RFCs said 2.12 — <strong>corrected</strong></td>
+</tr>
+<tr>
+<td>sbt</td>
+<td>1.12.1 (<code>project/build.properties</code>)</td>
+<td>Confirmed</td>
+</tr>
+<tr>
+<td>Play</td>
+<td>2.9.10 (<code>sbt-plugin</code>)</td>
+<td>Confirmed ("2.9")</td>
+</tr>
+<tr>
+<td>CI</td>
+<td>GitLab CI, <code>cl generateTestsPipeline</code> at
+<code>.gitlab-ci.yml:134</code></td>
+<td>Confirmed</td>
+</tr>
+<tr>
+<td>Test frameworks</td>
+<td>ScalaTest 3.2.19, scalatestplus-play 6.0.0, mockito-5-18,
+scalacheck-1-18</td>
+<td>Not covered by the RFCs</td>
+</tr>
+<tr>
+<td>JUnit interface</td>
+<td><code>com.github.sbt % junit-interface % 0.13.3</code> —
+<strong>JUnit 4 only</strong></td>
+<td>Not covered by the RFCs</td>
+</tr>
+<tr>
+<td>Modules</td>
+<td>195 under <code>modules/</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Existing Pact usage</td>
+<td>None — no match in <code>project/Dependencies.scala</code> or
+<code>build.sbt</code></td>
+<td>Greenfield</td>
+</tr>
+</tbody>
+</table>
+<h4 id="library">Library</h4>
+<p><a href="https://github.com/pact-foundation/pact-jvm">pact-jvm</a> —
+the JVM provider verification library, Apache 2.0, maintained by the
+Pact Foundation.</p>
+<blockquote>
+<p><strong>Security review:</strong> submit a review request for
+<code>au.com.dius.pact.provider</code> before merging to main, per the
+standard process for new third-party dependencies.</p>
+</blockquote>
+<p>Add to <code>project/Dependencies.scala</code>:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">val</span> pactVersion  <span class="op">=</span> <span class="st">&quot;4.6.14&quot;</span>   <span class="co">// version pinned by the May 2026 RFCs — confirm the current release at adoption time</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">val</span> pactProvider <span class="op">=</span> <span class="st">&quot;au.com.dius.pact.provider&quot;</span> <span class="op">%</span> <span class="st">&quot;junit5&quot;</span> <span class="op">%</span> pactVersion <span class="op">%</span> Test</span></code></pre></div>
+<p>Then in the module's <code>build.sbt</code>:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>libraryDependencies <span class="op">+=</span> Dependencies<span class="op">.</span>pactProvider</span></code></pre></div>
+<h4 id="warning-new--sbt-cannot-run-these-tests-as-configured">⚠️
+<strong>NEW — sbt cannot run these tests as configured</strong></h4>
+<p><code>pact-jvm</code>'s provider API is <strong>JUnit 5
+(Jupiter)</strong> first: <code>@TestTemplate</code> plus
+<code>PactVerificationInvocationContextProvider</code> are Jupiter
+constructs. The repo has <code>junit-interface 0.13.3</code>, which is a
+<strong>JUnit 4</strong> sbt bridge. sbt has no native JUnit 5
+runner.</p>
+<p>Two ways out, both real work the earlier RFCs did not budget:</p>
+<p><strong>Option 1 — add a Jupiter interface (smaller change).</strong>
+Add the sbt Jupiter bridge and register the framework for the
+verification module only:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">// project/plugins.sbt</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">addSbtPlugin</span><span class="op">(</span><span class="st">&quot;com.github.sbt.junit&quot;</span> <span class="op">%</span> <span class="st">&quot;sbt-jupiter-interface&quot;</span> <span class="op">%</span> <span class="st">&quot;&lt;current&gt;&quot;</span><span class="op">)</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co">// modules/pactVerification/build.sbt</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>testFrameworks <span class="op">+=</span> <span class="kw">new</span> <span class="fu">TestFramework</span><span class="op">(</span><span class="st">&quot;com.github.sbt.junit.jupiter.api.JupiterFramework&quot;</span><span class="op">)</span></span></code></pre></div>
+<p>Scoping it to one module keeps the other 194 modules on ScalaTest
+untouched.</p>
+<p><strong>Option 2 — drive pact-jvm from ScalaTest (no new test
+framework).</strong> Use <code>ProviderVerifier</code> /
+<code>ProviderVerifierBase</code> directly instead of the JUnit5
+annotation surface, and wrap it in an ordinary <code>AnyFunSpec</code>.
+More code to write once, zero build-infrastructure change, and it stays
+idiomatic for the repo.</p>
+<p><strong>Recommendation: Option 1 for the spike, and decide properly
+before it spreads.</strong> Option 2 is likely the better long-term fit
+for a 195-module ScalaTest codebase, but Option 1 gets a working
+verification in an afternoon and the annotation surface is what all the
+upstream documentation assumes. This is the single biggest unknown in
+the whole plan and it should be resolved by a timeboxed spike, not by a
+document.</p>
+<h4 id="where-tests-live">Where tests live</h4>
+<p>A dedicated module fits the existing <code>modules/</code>
+layout:</p>
+<pre><code>modules/pactVerification/
+  src/test/scala/pact/
+    MobileContractVerificationSpec.scala</code></pre>
+<p>Alternatively place them alongside the API module they verify, e.g.
+<code>modules/user/src/test/scala/pact/</code>.</p>
+<h4 id="how-verification-works">How verification works</h4>
+<p>Pact does <strong>not</strong> read or introspect
+<code>.routes</code> files. The consumer contracts published by mobile
+already contain the full HTTP interactions — method, path, headers,
+expected response. The verification test starts the Play app (or targets
+a running instance such as <code>stage-ci</code>, which rebuilds on
+every commit), replays each interaction as a <strong>real HTTP
+request</strong>, and asserts the actual response matches the contract.
+If the route does not exist or the response shape changed, the test
+fails.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant Pact as Pact Framework
+    participant App as Play App (localhost:9000)
+    participant DB as Test DB
+
+    Pact-&gt;&gt;Pact: Load contract from Broker
+    Pact-&gt;&gt;DB: Call @State(&quot;user has networks&quot;) to seed data
+    Pact-&gt;&gt;App: GET /2.2/account/networks (from contract)
+    App-&gt;&gt;DB: Query user networks
+    App--&gt;&gt;Pact: 200 { &quot;networks&quot;: [...] }
+    Pact-&gt;&gt;Pact: Assert response matches contract shape</code></pre>
+<h4 id="verification-test-junit5-surface--option-1">Verification test
+(JUnit5 surface — Option 1)</h4>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode scala"><code class="sourceCode scala"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> au<span class="op">.</span>com<span class="op">.</span>dius<span class="op">.</span>pact<span class="op">.</span>provider<span class="op">.</span>junit5<span class="op">.</span>_</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> au<span class="op">.</span>com<span class="op">.</span>dius<span class="op">.</span>pact<span class="op">.</span>provider<span class="op">.</span>junitsupport<span class="op">.</span>_</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> au<span class="op">.</span>com<span class="op">.</span>dius<span class="op">.</span>pact<span class="op">.</span>provider<span class="op">.</span>junitsupport<span class="op">.</span>loader<span class="op">.</span>_</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org<span class="op">.</span>junit<span class="op">.</span>jupiter<span class="op">.</span>api<span class="op">.{</span>BeforeEach<span class="op">,</span> TestTemplate<span class="op">}</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> org<span class="op">.</span>junit<span class="op">.</span>jupiter<span class="op">.</span>api<span class="op">.</span>extension<span class="op">.</span>ExtendWith</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>@<span class="fu">Provider</span><span class="op">(</span><span class="st">&quot;eero-cloud&quot;</span><span class="op">)</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>@<span class="fu">PactBroker</span><span class="op">(</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  url <span class="op">=</span> <span class="st">&quot;${PACT_BROKER_URL}&quot;</span><span class="op">,</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  authentication <span class="op">=</span> @<span class="fu">PactBrokerAuth</span><span class="op">(</span>token <span class="op">=</span> <span class="st">&quot;${PACT_BROKER_TOKEN}&quot;</span><span class="op">)</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="op">)</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MobileContractVerificationSpec <span class="op">{</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>  @TestTemplate</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  @<span class="fu">ExtendWith</span><span class="op">(</span><span class="ex">Array</span><span class="op">(</span>classOf<span class="op">[</span>PactVerificationInvocationContextProvider<span class="op">]))</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">def</span> <span class="fu">verifyPact</span><span class="op">(</span>context<span class="op">:</span> PactVerificationContext<span class="op">):</span> <span class="bu">Unit</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>    context<span class="op">.</span><span class="fu">verifyInteraction</span><span class="op">()</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>  @BeforeEach</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  <span class="kw">def</span> <span class="fu">setUp</span><span class="op">(</span>context<span class="op">:</span> PactVerificationContext<span class="op">):</span> <span class="bu">Unit</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Point at a running Play app instance</span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>    context<span class="op">.</span><span class="fu">setTarget</span><span class="op">(</span><span class="kw">new</span> <span class="fu">HttpTestTarget</span><span class="op">(</span><span class="st">&quot;localhost&quot;</span><span class="op">,</span> <span class="dv">9000</span><span class="op">))</span></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="co">// --- Provider States ---</span></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>  <span class="co">// Each @State matches a .given(&quot;...&quot;) from a mobile consumer test</span></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  @<span class="fu">State</span><span class="op">(</span><span class="st">&quot;user has networks&quot;</span><span class="op">)</span></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>  <span class="kw">def</span> <span class="fu">setupUserWithNetworks</span><span class="op">():</span> <span class="bu">Unit</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>    TestDB<span class="op">.</span><span class="fu">seedUser</span><span class="op">(</span>userId <span class="op">=</span> <span class="st">&quot;test-user&quot;</span><span class="op">,</span> networks <span class="op">=</span> <span class="ex">List</span><span class="op">(</span></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>      <span class="fu">Network</span><span class="op">(</span>id <span class="op">=</span> <span class="st">&quot;net-001&quot;</span><span class="op">,</span> name <span class="op">=</span> <span class="st">&quot;Home Network&quot;</span><span class="op">,</span> connectedClients <span class="op">=</span> <span class="dv">5</span><span class="op">),</span></span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>      <span class="fu">Network</span><span class="op">(</span>id <span class="op">=</span> <span class="st">&quot;net-002&quot;</span><span class="op">,</span> name <span class="op">=</span> <span class="st">&quot;Office&quot;</span><span class="op">,</span>       connectedClients <span class="op">=</span> <span class="dv">3</span><span class="op">)</span></span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>    <span class="op">))</span></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>  @<span class="fu">State</span><span class="op">(</span><span class="st">&quot;user has no networks&quot;</span><span class="op">)</span></span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>  <span class="kw">def</span> <span class="fu">setupUserWithNoNetworks</span><span class="op">():</span> <span class="bu">Unit</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>    TestDB<span class="op">.</span><span class="fu">seedUser</span><span class="op">(</span>userId <span class="op">=</span> <span class="st">&quot;test-user&quot;</span><span class="op">,</span> networks <span class="op">=</span> <span class="ex">List</span><span class="op">.</span>empty<span class="op">)</span></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>  @<span class="fu">State</span><span class="op">(</span><span class="st">&quot;network has eeros&quot;</span><span class="op">)</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>  <span class="kw">def</span> <span class="fu">setupNetworkWithEeros</span><span class="op">():</span> <span class="bu">Unit</span> <span class="op">=</span> <span class="op">{</span></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a>    TestDB<span class="op">.</span><span class="fu">seedNetwork</span><span class="op">(</span>networkId <span class="op">=</span> <span class="st">&quot;net-001&quot;</span><span class="op">,</span> eeros <span class="op">=</span> <span class="ex">List</span><span class="op">(</span></span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>      <span class="fu">Eero</span><span class="op">(</span>serialNumber <span class="op">=</span> <span class="st">&quot;SN001&quot;</span><span class="op">,</span> model <span class="op">=</span> <span class="st">&quot;eero Pro 6E&quot;</span><span class="op">,</span> status <span class="op">=</span> <span class="st">&quot;online&quot;</span><span class="op">),</span></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>      <span class="fu">Eero</span><span class="op">(</span>serialNumber <span class="op">=</span> <span class="st">&quot;SN002&quot;</span><span class="op">,</span> model <span class="op">=</span> <span class="st">&quot;eero 6+&quot;</span><span class="op">,</span>     status <span class="op">=</span> <span class="st">&quot;offline&quot;</span><span class="op">)</span></span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">))</span></span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Key points:</p>
+<ul>
+<li><code>@Provider("eero-cloud")</code> must match the provider name in
+the mobile consumer tests</li>
+<li><code>@State</code> methods set up the preconditions mobile declared
+via <code>.given(...)</code></li>
+<li>The test replays each interaction from the pact against a real
+server</li>
+</ul>
+<h3 id="57-provider-states--the-bridge-between-mobile-and-cloud">5.7
+Provider states — the bridge between mobile and cloud</h3>
+<pre class="mermaid"><code>flowchart LR
+    subgraph Mobile[&quot;Mobile (Consumer)&quot;]
+        M1[&quot;.given(&#39;user has networks&#39;)&quot;]
+        M2[&quot;.given(&#39;user has no networks&#39;)&quot;]
+        M3[&quot;.given(&#39;network has eeros&#39;)&quot;]
+    end
+    subgraph Broker[&quot;Pact Broker&quot;]
+        B[&quot;Contract with providerState field&quot;]
+    end
+    subgraph Cloud[&quot;Cloud (Provider)&quot;]
+        C1[&quot;@State(&#39;user has networks&#39;)&quot;]
+        C2[&quot;@State(&#39;user has no networks&#39;)&quot;]
+        C3[&quot;@State(&#39;network has eeros&#39;)&quot;]
+    end
+    M1 --&gt; B
+    M2 --&gt; B
+    M3 --&gt; B
+    B --&gt; C1
+    B --&gt; C2
+    B --&gt; C3</code></pre>
+<p><strong>Mobile defines what states exist. Cloud defines how to set
+them up.</strong> Writing <code>@State</code> handlers is the bulk of
+the ongoing provider-side effort.</p>
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Description</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>In-memory test server</strong></td>
+<td>Start Play in test mode with an in-memory/test database. The HTTP
+server is still real; only the data layer is ephemeral</td>
+<td>Fast, isolated — <strong>recommended</strong> for most cases</td>
+</tr>
+<tr>
+<td><strong>Docker-compose</strong></td>
+<td>Full stack with a test DB</td>
+<td>More realistic, heavier, slower CI</td>
+</tr>
+<tr>
+<td><strong>State endpoint</strong></td>
+<td>Expose a test-only <code>POST /_pact/state</code>; Pact posts
+<code>{"state": "user has networks"}</code> before each interaction and
+the app seeds internally</td>
+<td>Clean separation; useful when setup needs internal services not
+callable from external test code. Requires a test-only route</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>⚠️ <strong>NEW — a note on <code>@State</code> and 195
+modules.</strong> The <code>TestDB.seedUser(...)</code> calls above are
+illustrative, not real API. Before committing to Pact, confirm what a
+seeding harness looks like against the actual persistence layer for the
+endpoints in scope. If seeding a user with networks requires touching
+several modules, the <strong>state endpoint</strong> option becomes
+considerably more attractive than the table above implies, because the
+app can do the seeding through its own services. Resolve this in the
+same spike as the JUnit5 question.</p>
+</blockquote>
+<h3 id="58-the-broker">5.8 The broker</h3>
+<p>A central server that:</p>
+<ul>
+<li>Stores versioned contracts, tagged by branch and commit</li>
+<li>Stores verification results from the provider</li>
+<li>Answers <strong>"can I deploy?"</strong> in both directions</li>
+<li>Triggers webhooks — e.g. re-run cloud verification when mobile
+publishes a new contract</li>
+</ul>
+<p><strong>Hosting:</strong> Pactflow SaaS for initial adoption — zero
+ops overhead, built-in <code>can-i-deploy</code>, webhook support.
+Evaluate a self-hosted Docker broker if cost becomes a concern.</p>
+<h4 id="can-i-deploy">can-i-deploy</h4>
+<p>Both sides run this before merge:</p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Mobile asks: &quot;Is the current cloud compatible with my new contract?&quot;</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="ex">pact-broker</span> can-i-deploy <span class="dt">\</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--pacticipant</span> eero-ios <span class="dt">\</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--version</span> <span class="va">$CI_COMMIT_SHA</span> <span class="dt">\</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--to-environment</span> production <span class="dt">\</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--broker-base-url</span> <span class="va">$PACT_BROKER_URL</span> <span class="dt">\</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--broker-token</span> <span class="va">$PACT_BROKER_TOKEN</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Cloud asks: &quot;Does my change still satisfy all mobile contracts?&quot;</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="ex">pact-broker</span> can-i-deploy <span class="dt">\</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">--pacticipant</span> eero-cloud <span class="dt">\</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--version</span> <span class="va">$CI_COMMIT_SHA</span> <span class="dt">\</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">--to-environment</span> production <span class="dt">\</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">--broker-base-url</span> <span class="va">$PACT_BROKER_URL</span> <span class="dt">\</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">--broker-token</span> <span class="va">$PACT_BROKER_TOKEN</span></span></code></pre></div>
+<p>If either fails, the PR is blocked. Breaking changes surface in the
+PR that introduces them, on whichever side that is.</p>
+<h3 id="59-ci-integration">5.9 CI integration</h3>
+<h4 id="cloud-gitlabglobal-testgitlab-ciyml">Cloud
+(<code>.gitlab/global-test.gitlab-ci.yml</code>)</h4>
+<p>This job does not depend on the dynamically generated test matrix
+from <code>cl generateTestsPipeline</code>. It verifies against
+<code>stage-ci</code>, which runs on every commit:</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="at">pact</span><span class="fu">:verify</span><span class="kw">:</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">stage</span><span class="kw">:</span><span class="at"> globalTest</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tags</span><span class="kw">:</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> 5xlarge</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rules</span><span class="kw">:</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">if</span><span class="kw">:</span><span class="at"> $EPHEMERAL_LOCAL_DEPLOY == &quot;true&quot;</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">when</span><span class="kw">:</span><span class="at"> never</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">if</span><span class="kw">:</span><span class="at"> $CI_COMMIT_TAG</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">when</span><span class="kw">:</span><span class="at"> never</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">when</span><span class="kw">:</span><span class="at"> on_success</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">script</span><span class="kw">:</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> ./bin/get_maven_creds.sh</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> ./bin/fetch_amazon_artifacts.sh</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> sbt &quot;pactVerification/test&quot;</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="kw">    - </span><span class="ch">|</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>      pact-broker can-i-deploy \</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>        --pacticipant eero-cloud \</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>        --version $CI_COMMIT_SHA \</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>        --broker-base-url $PACT_BROKER_URL \</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>        --broker-token $PACT_BROKER_TOKEN</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">cache</span><span class="kw">:</span></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">key</span><span class="kw">:</span><span class="at"> $SCALA_CACHE_KEY</span></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">policy</span><span class="kw">:</span><span class="at"> pull</span></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">paths</span><span class="kw">:</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> .ivy2</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> .sbt</span></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">timeout</span><span class="kw">:</span><span class="at"> 30m</span></span></code></pre></div>
+<h4 id="mobile--and-an-open-question-on-the-trigger">Mobile — and an
+open question on the trigger</h4>
+<p>The May RFC proposed an <strong>opt-in trigger</strong>: Pact jobs
+run only when a commit message in the PR carries a <code>[pact]</code>
+tag.</p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># iOS (.gitlab-ci.yml)</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="at">pact</span><span class="fu">:consumer</span><span class="kw">:</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">stage</span><span class="kw">:</span><span class="at"> integration tests</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rules</span><span class="kw">:</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">if</span><span class="kw">:</span><span class="at"> $CI_PIPELINE_SOURCE == &quot;trigger&quot; &amp;&amp; $CI_COMMIT_MESSAGE =~ /\[pact\]/</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">if</span><span class="kw">:</span><span class="at"> $CI_PIPELINE_SOURCE == &quot;external_pull_requests&quot; &amp;&amp; $CI_COMMIT_MESSAGE =~ /\[pact\]/</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">script</span><span class="kw">:</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> bundle exec fastlane run_pact_tests</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> pact-broker publish pacts/ --consumer-app-version=$CI_COMMIT_SHA --broker-base-url=$PACT_BROKER_URL --broker-token=$PACT_BROKER_TOKEN</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Android (.test-include.yml)</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="at">test</span><span class="fu">:pact</span><span class="kw">:</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">stage</span><span class="kw">:</span><span class="at"> test</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rules</span><span class="kw">:</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">if</span><span class="kw">:</span><span class="at"> $CI_PIPELINE_SOURCE == &quot;external_pull_requests&quot; &amp;&amp; $CI_COMMIT_MESSAGE =~ /\[pact\]/</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">script</span><span class="kw">:</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> ./gradlew :data:network:test --tests &quot;*.pact.*&quot;</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> pact-broker publish data/network/build/pacts/ --consumer-app-version=$CI_COMMIT_SHA --broker-base-url=$PACT_BROKER_URL --broker-token=$PACT_BROKER_TOKEN</span></span></code></pre></div>
+<p><strong>Flagging this honestly:</strong> an equivalent opt-in
+mechanism was proposed for the golden-fixture tests and
+<strong>rejected</strong> in review, on the grounds that a test which
+only runs when someone remembers a tag is not a gate. That reasoning
+applies here too — a commit-message tag will be forgotten precisely on
+the PR that breaks a contract.</p>
+<p>The counter-argument is real: unlike the fixture tests, Pact consumer
+tests need a broker round-trip, so running them on every PR couples
+every mobile PR to broker availability. Reasonable middle grounds:</p>
+<ul>
+<li>Run consumer tests on every PR (they only need a local mock server),
+but publish and <code>can-i-deploy</code> only on merge to the main
+branch</li>
+<li>Run on every PR touching the API client layer, path-filtered rather
+than tag-filtered</li>
+<li>Keep <code>can-i-deploy</code> advisory (non-blocking) until the
+broker has proven stable, then promote it to a gate</li>
+</ul>
+<p><strong>Decide this deliberately.</strong> It is the difference
+between a gate and a suggestion, and it is the mistake most worth
+avoiding twice.</p>
+<h3 id="510-webhook-optional">5.10 Webhook (optional)</h3>
+<p>Configure the broker to trigger cloud CI when a new consumer contract
+is published, so provider verification runs without waiting for a cloud
+PR:</p>
+<pre><code>Broker webhook → GitLab pipeline trigger → pact:verify job</code></pre>
+<h3 id="511-technical-reference">5.11 Technical reference</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Library (cloud)</td>
+<td><code>au.com.dius.pact.provider:junit5:4.6.14</code></td>
+</tr>
+<tr>
+<td>Library (iOS)</td>
+<td>PactSwift</td>
+</tr>
+<tr>
+<td>Library (Android)</td>
+<td><code>au.com.dius.pact.consumer:junit5:4.6.14</code></td>
+</tr>
+<tr>
+<td>Contract format</td>
+<td>Pact Specification v4 (JSON)</td>
+</tr>
+<tr>
+<td>Transport</td>
+<td>Real HTTP — the provider starts an actual server and Pact makes real
+requests</td>
+</tr>
+<tr>
+<td>Matching</td>
+<td>Type-based by default; also regex, min/max array size, date
+formats</td>
+</tr>
+<tr>
+<td>State management</td>
+<td><code>@State</code> (provider) ↔︎ <code>.given()</code>
+(consumer)</td>
+</tr>
+<tr>
+<td>CI gating</td>
+<td><code>pact-broker can-i-deploy</code> CLI</td>
+</tr>
+<tr>
+<td>Versioning</td>
+<td>Contracts tagged by git SHA + branch</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-what-contract-testing-catches--and-what-it-does-not">6. What
+contract testing catches — and what it does not</h2>
+<h3 id="catches">Catches</h3>
+<ul>
+<li>Removed or renamed fields in API responses</li>
+<li>Changed response types (string → int, array → object)</li>
+<li>Removed endpoints (404)</li>
+<li>Changed status codes</li>
+<li>Added required request fields the consumer does not send</li>
+<li>Missing response headers</li>
+</ul>
+<h3 id="does-not-catch">Does NOT catch</h3>
+<ul>
+<li>Business logic bugs — correct shape, wrong data</li>
+<li>Performance issues</li>
+<li>Auth and permission edge cases, unless explicitly contracted</li>
+<li>UI rendering issues</li>
+<li>Multi-request stateful flows — each interaction is independent</li>
+<li>Data correctness — Pact checks types, not values</li>
+</ul>
+<h3 id="mapped-to-the-august-evidence">Mapped to the August
+evidence</h3>
+<p>That last list is not abstract. Of the 48 categorized bugs,
+<strong>16 are Category 2 state-sync defects that neither Approach A nor
+Approach B catches</strong>, because the shape was right and the data
+was wrong:</p>
+<ul>
+<li><strong>CORE-33320</strong> — the SSID write returns success and is
+audit-logged, and is never applied</li>
+<li><strong>CORE-32917 / CORE-33148 / CORE-33341</strong> — a WAN link
+reports <code>active: true</code> while another holds the default route.
+Perfectly valid boolean</li>
+<li><strong>CORE-32327</strong> — a removed accessory is still returned.
+Valid response, wrong contents</li>
+<li><strong>CORE-33055</strong> — a retried activation issues a second
+ICCID. Both responses well-formed</li>
+</ul>
+<p>Contract testing validates the interface. <strong>Do not let it be
+sold as covering these.</strong> They need §7.</p>
+<hr />
+<h2
+id="7-integration-tests--the-part-contract-testing-does-not-cover">7.
+Integration tests — the part contract testing does not cover</h2>
+<p>Category 2 needs a different assertion: <strong>a write is visible on
+the read path, and a reported status matches physical reality.</strong>
+These are integration tests, and they are cheaper than they sound
+because most can run against faked API clients rather than staging.</p>
+<p>The invariants worth encoding first, each traceable to a P0 or P1 in
+the August window:</p>
+<table>
+<thead>
+<tr>
+<th>Invariant</th>
+<th>Tickets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Exactly one WAN link reports <code>active: true</code>, and it is
+the one holding the default route — asserted across DHCP, Static, PPPoE
+<strong>and their VLAN variants</strong></td>
+<td>CORE-32917, 33148, 33341</td>
+</tr>
+<tr>
+<td>After a settings write returns success, the next read returns the
+new value. Audit-log success is not acceptance</td>
+<td>CORE-33320, 32463, 33188</td>
+</tr>
+<tr>
+<td>Setup reports success only after the network is reachable through
+the read path the app uses</td>
+<td>CORE-33057, 33304</td>
+</tr>
+<tr>
+<td>After a removal returns success, the entity is absent from the read
+path regardless of power state</td>
+<td>CORE-32327</td>
+</tr>
+<tr>
+<td>A retried activation is idempotent — one device converges on one
+ICCID</td>
+<td>CORE-33055</td>
+</tr>
+<tr>
+<td>Every node written on the factory line is readable from cloud within
+N minutes; the sync cursor cannot advance past unread rows</td>
+<td>CORE-33309, 32469</td>
+</tr>
+<tr>
+<td>An addressing-mode change applies to every subnet or to none</td>
+<td>CORE-33364</td>
+</tr>
+<tr>
+<td>A KV read failure retains the last good policy map — empty is never
+a valid substitute</td>
+<td>CORE-32766</td>
+</tr>
+</tbody>
+</table>
+<p>The Android <code>PortDetailViewModel</code> INT-001..003 pattern —
+fake API client, assert on emitted state — is directly reusable for the
+client half of these. The cloud half is ordinary ScalaTest against a
+test database.</p>
+<p><strong>The VLAN detail in the first row is worth noting.</strong>
+CORE-33341 reproduces on DHCP+VLAN, Static+VLAN and PPPoE+VLAN, and
+<strong>not</strong> on any of them without VLAN. An invariant asserted
+only over the base connection types would have passed. Enumerate the
+variant matrix, do not sample it.</p>
+<hr />
+<h2 id="8-rollout-and-effort">8. Rollout and effort</h2>
+<h3 id="recommended-sequence">Recommended sequence</h3>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Scope</th>
+<th>Effort</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0</strong></td>
+<td><strong>§4.3 cloud-side golden-fixture specs</strong> — request
+validation, enum exhaustiveness, status mapping. No dependencies, no
+broker, no CI change</td>
+<td>Hours per pattern</td>
+<td>Cloud</td>
+</tr>
+<tr>
+<td><strong>0b</strong></td>
+<td>Add the CORE-33235 per-port derivation test on iOS + Android</td>
+<td>~1 h each</td>
+<td>Mobile / QAE</td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>Timeboxed spike</strong> — resolve the JUnit5-vs-ScalaTest
+question (§5.6) and the <code>@State</code> seeding question (§5.7)
+against two real endpoints</td>
+<td>2–3 days</td>
+<td>Cloud</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>Pact consumer tests for 1–2 critical endpoints
+(<code>/2.2/account/networks</code>, <code>/login</code>), iOS
+first</td>
+<td>2 weeks</td>
+<td>Mobile</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>Same endpoints on Android + provider verification job in cloud CI,
+broker connected</td>
+<td>2 weeks</td>
+<td>Mobile + Cloud</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>Expand to 5–10 high-churn endpoints; promote
+<code>can-i-deploy</code> from advisory to merge gate</td>
+<td>4 weeks</td>
+<td>Both</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>Integration-test invariants from §7, starting with the WAN
+<code>active</code> matrix</td>
+<td>Ongoing</td>
+<td>Both</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td>Policy: all net-new API work carries a contract test</td>
+<td>Ongoing</td>
+<td>Both</td>
+</tr>
+</tbody>
+</table>
+<p>Start narrow, prove value, expand. No big-bang migration.
+<strong>Phase 0 has no prerequisites and should not wait on any of the
+others.</strong></p>
+<h3 id="effort-estimate-provider-side">Effort estimate (provider
+side)</h3>
+<ul>
+<li><strong>Initial setup</strong> — dependency, CI job, 2 endpoint
+verifications: ~2–3 days <em>(assumes the Phase 1 spike resolved
+cleanly; if Option 2 in §5.6 is chosen, add 1–2 days)</em></li>
+<li><strong>Per endpoint, ongoing</strong> — ~1–2 hours, mostly writing
+<code>@State</code> handlers</li>
+<li><strong>Maintenance</strong> — minimal. Contracts are owned by
+mobile; cloud verifies</li>
+</ul>
+<h3 id="success-metrics">Success metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target (6 months)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API-contract bugs found post-merge</td>
+<td>≥ 70% reduction</td>
+</tr>
+<tr>
+<td>Device farm failures attributed to API drift</td>
+<td>≥ 50% reduction</td>
+</tr>
+<tr>
+<td>Mean time from contract break to developer notification</td>
+<td>&lt; 10 min (PR CI)</td>
+</tr>
+<tr>
+<td>Backend PRs verified against consumer contracts</td>
+<td>100% of API-surface PRs</td>
+</tr>
+<tr>
+<td>Categorized bugs per week (gap-analysis measure)</td>
+<td>Below 8.0/wk and falling</td>
+</tr>
+</tbody>
+</table>
+<p>That last row is the one to actually watch. It is measured the same
+way in every snapshot and it has not moved in three months.</p>
+<hr />
+<h2 id="9-risks-and-mitigations">9. Risks and mitigations</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Maintenance burden</strong> — contracts drift from real
+usage</td>
+<td>Integrate contract generation into existing API model layers; review
+contracts in PR diffs like any other test</td>
+</tr>
+<tr>
+<td><strong>False confidence</strong> — passing contracts ≠ working
+system</td>
+<td>Scope contract testing explicitly to shape validation. §6 and §7
+exist to keep this honest. Retain integration and E2E suites for
+behavioural coverage</td>
+</tr>
+<tr>
+<td><strong>Broker availability</strong> — CI blocked if the broker is
+down</td>
+<td>Pactflow SaaS with an SLA; make <code>can-i-deploy</code> advisory
+until stability is proven; add a circuit-breaker so CI degrades rather
+than blocks</td>
+</tr>
+<tr>
+<td><strong>Adoption friction</strong> — teams unfamiliar with
+consumer-driven testing</td>
+<td>Starter templates for Swift and Kotlin; pair on the first 2–3
+contracts per team. Approach A already has a merged reference on both
+platforms</td>
+</tr>
+<tr>
+<td><strong>Build-infrastructure surprise</strong> — JUnit5 does not run
+under sbt as configured</td>
+<td>This is the Phase 1 spike. Do not commit to a rollout date before it
+resolves</td>
+</tr>
+<tr>
+<td><strong><code>@State</code> seeding is harder than the examples
+suggest</strong></td>
+<td>Same spike. The state-endpoint option exists precisely for this
+case</td>
+</tr>
+<tr>
+<td><strong>The opt-in trigger quietly makes it
+non-blocking</strong></td>
+<td>§5.9 — decide the trigger deliberately, and prefer path filters over
+commit-message tags</td>
+</tr>
+<tr>
+<td><strong>Fixture rot in Approach A</strong></td>
+<td>Fixtures are recordings and cannot disagree with you. Pair them with
+a periodic refresh from staging, and prefer Approach B for interfaces
+where drift is the main risk</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="appendix-a--verified-environment-facts">Appendix A — Verified
+environment facts</h2>
+<p>Verified 2026-08-31 against <code>eero-inc/cloud</code> at
+<code>main</code>. <strong>The May 2026 RFCs asserted Scala 2.12; it is
+2.13.18.</strong> Everything below was read from the repo, not carried
+forward.</p>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scala version</td>
+<td><code>2.13.18</code></td>
+<td><code>scalaVersion := "2.13.18"</code></td>
+</tr>
+<tr>
+<td>sbt version</td>
+<td><code>1.12.1</code></td>
+<td><code>project/build.properties</code></td>
+</tr>
+<tr>
+<td>Play (sbt-plugin)</td>
+<td><code>2.9.10</code></td>
+<td><code>project/plugins.sbt</code></td>
+</tr>
+<tr>
+<td>play-json</td>
+<td><code>2.10.6</code></td>
+<td><code>project/Dependencies.scala</code></td>
+</tr>
+<tr>
+<td>CI</td>
+<td>GitLab CI; <code>cl generateTestsPipeline</code></td>
+<td><code>.gitlab-ci.yml:134</code></td>
+</tr>
+<tr>
+<td>ScalaTest</td>
+<td><code>3.2.19</code></td>
+<td><code>project/Dependencies.scala</code></td>
+</tr>
+<tr>
+<td>scalatestplus-play</td>
+<td><code>6.0.0</code></td>
+<td><code>project/Dependencies.scala</code></td>
+</tr>
+<tr>
+<td>mockito</td>
+<td><code>mockito-5-18</code> (<code>3.2.19.0</code>)</td>
+<td><code>project/Dependencies.scala</code></td>
+</tr>
+<tr>
+<td>scalacheck</td>
+<td><code>scalacheck-1-18</code> (<code>3.2.19.0</code>)</td>
+<td><code>project/Dependencies.scala</code></td>
+</tr>
+<tr>
+<td>JUnit sbt bridge</td>
+<td><code>com.github.sbt % junit-interface % 0.13.3</code> —
+<strong>JUnit 4</strong></td>
+<td><code>project/Dependencies.scala:465</code></td>
+</tr>
+<tr>
+<td>Jupiter (JUnit 5) support</td>
+<td><strong>None</strong></td>
+<td>No match in <code>project/plugins.sbt</code></td>
+</tr>
+<tr>
+<td>Modules</td>
+<td>195 under <code>modules/</code></td>
+<td><code>ls -d modules/*/</code></td>
+</tr>
+<tr>
+<td>Existing Pact usage</td>
+<td>None</td>
+<td>No match in <code>project/Dependencies.scala</code>,
+<code>build.sbt</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>pact-jvm 4.6.14</code> is the version pinned by the May RFCs
+and has not been re-checked against the current upstream release.
+Confirm before adding the dependency.</p>
+<hr />
+<h2 id="appendix-b--industry-evidence">Appendix B — Industry
+evidence</h2>
+<p>Carried forward from the June technical overview. Presented as
+supporting context; the August gap analysis is the local evidence and is
+the stronger argument.</p>
+<h3 id="case-studies-pact-foundation">Case studies (Pact
+Foundation)</h3>
+<table>
+<thead>
+<tr>
+<th>Organization</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Atlassian</strong> (Jira)</td>
+<td>Reduced API feedback loops from days/weeks to hours. Enabled
+parallel development — integration teams could begin implementation
+without waiting for the API to be complete</td>
+</tr>
+<tr>
+<td><strong>ITV</strong> (1B+ on-demand requests, 17M users, 27
+platforms)</td>
+<td>Eliminated tightly coupled integration test environments entirely.
+Services tested and deployed independently</td>
+</tr>
+<tr>
+<td><strong>John Lewis &amp; Partners</strong></td>
+<td>Gave the team confidence to remove all E2E tests they previously
+had. No longer reliant on other services being available for their
+pipeline to stay green</td>
+</tr>
+<tr>
+<td><strong>Mastercard</strong></td>
+<td>Eliminated API specification drift between teams</td>
+</tr>
+<tr>
+<td><strong>UK Government Digital Service</strong></td>
+<td>Replaced expensive end-to-end testing with Pact contract
+testing</td>
+</tr>
+<tr>
+<td><strong>M1 Finance</strong></td>
+<td>Recovered ~33% of developer time previously spent on manual API
+testing with Postman. 17 services onboarded in under 6 months</td>
+</tr>
+</tbody>
+</table>
+<h3 id="industry-statistics">Industry statistics</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Organizations using contract testing reporting reduced integration
+issues</td>
+<td>70%</td>
+<td>Worldmetrics QA Industry Report, 2026 (#90)</td>
+</tr>
+<tr>
+<td>Reduction in production incidents after contract testing
+adoption</td>
+<td>30%</td>
+<td>2023 State of Testing Report</td>
+</tr>
+<tr>
+<td>Faster release cycle after contract testing adoption</td>
+<td>20%</td>
+<td>2023 State of Testing Report</td>
+</tr>
+<tr>
+<td>Reduction in defect escape rate with shift-left testing</td>
+<td>35%</td>
+<td>Worldmetrics QA Industry Report, 2026 (#6, Verified)</td>
+</tr>
+<tr>
+<td>Fewer production defects when test automation is used</td>
+<td>40%</td>
+<td>Worldmetrics QA Industry Report, 2026 (#51, Verified)</td>
+</tr>
+<tr>
+<td>Average defect escape rate without contract testing</td>
+<td>25% (1 in 4 defects reach production)</td>
+<td>Worldmetrics QA Industry Report, 2026 (#41, Verified)</td>
+</tr>
+<tr>
+<td>Cost of a single software defect (2023)</td>
+<td>$13,200</td>
+<td>Worldmetrics QA Industry Report, 2026 (#42)</td>
+</tr>
+<tr>
+<td>Faster time-to-market with continuous testing at same quality</td>
+<td>25%</td>
+<td>Worldmetrics QA Industry Report, 2026 (#54, Verified)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sources">Sources</h3>
+<ul>
+<li>Pact Foundation case studies — <a
+href="https://docs.pact.io/users/case_studies">https://docs.pact.io/users/case_studies</a></li>
+<li>Pact Foundation testimonials — <a
+href="https://docs.pact.io/users/testimonials">https://docs.pact.io/users/testimonials</a></li>
+<li>Worldmetrics QA Testing Industry Statistics (2026) — <a
+href="https://worldmetrics.org/qa-testing-industry-statistics/">https://worldmetrics.org/qa-testing-industry-statistics/</a></li>
+<li>2023 State of Testing Report (cited via resumly.ai)</li>
+<li>pact-jvm — <a
+href="https://github.com/pact-foundation/pact-jvm">https://github.com/pact-foundation/pact-jvm</a></li>
+</ul>
+<hr />
+<h2 id="appendix-c--open-questions-for-cloud-engineering">Appendix C —
+Open questions for Cloud Engineering</h2>
+<p>Everything that cannot be answered from outside the cloud team. These
+are the actual agenda for a first conversation.</p>
+<ol type="1">
+<li><strong>JUnit5 under sbt</strong> (§5.6) — add
+<code>sbt-jupiter-interface</code> scoped to one module, or drive
+<code>ProviderVerifier</code> from ScalaTest? Biggest unknown in the
+plan.</li>
+<li><strong><code>@State</code> seeding</strong> (§5.7) — what does a
+seeding harness look like against the real persistence layer for
+<code>/2.2/account/networks</code> and <code>/login</code>? Does that
+push us toward the state-endpoint option?</li>
+<li><strong>Verification target</strong> — spin up Play in-process per
+run, or verify against <code>stage-ci</code>? The v2 RFC assumed
+<code>stage-ci</code>; the in-memory option is faster and more isolated
+but needs a test database story.</li>
+<li><strong>Broker hosting</strong> — Pactflow SaaS, or self-hosted from
+the start? Is there an existing internal broker to reuse?</li>
+<li><strong>Trigger policy</strong> (§5.9) — path filters, every-PR, or
+merge-only publishing? And does <code>can-i-deploy</code> start advisory
+or blocking?</li>
+<li><strong>Which endpoints first</strong> — the RFCs propose
+<code>/2.2/account/networks</code> and <code>/login</code> as generic
+starting points. The August evidence argues for <strong>Multi-WAN / WAN
+links</strong> (19 bugs, 9 P0) instead. Cloud's view on churn and
+stability should decide.</li>
+<li><strong>Security review</strong> — timeline for
+<code>au.com.dius.pact.provider</code> approval, so it does not become
+the critical path.</li>
+<li><strong>Phase 0 ownership</strong> (§4.3) — the golden-fixture specs
+need no Pact decision at all. Who picks them up, and when?</li>
+</ol>
+</main>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+// Pandoc wraps fenced mermaid blocks as <pre class="mermaid"><code>...</code></pre>.
+// Mermaid needs the raw graph text as the element's only content.
+document.querySelectorAll('pre.mermaid').forEach(pre => {
+  const code = pre.querySelector('code');
+  if (code) pre.textContent = code.textContent;
+});
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: { background: '#12141c', primaryColor: '#1a1d27', primaryTextColor: '#e4e4e7', lineColor: '#6366f1' }
+});
+await mermaid.run({ querySelector: 'pre.mermaid' });
+</script>
+
+<script>
+// Highlight the current section in the sidebar.
+const heads = [...document.querySelectorAll('main h2[id], main h3[id]')];
+const links = new Map([...document.querySelectorAll('nav.toc a')].map(a => [a.getAttribute('href')?.slice(1), a]));
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    const a = links.get(e.target.id);
+    if (!a) return;
+    if (e.isIntersecting) {
+      document.querySelectorAll('nav.toc a.here').forEach(x => x.classList.remove('here'));
+      a.classList.add('here');
+    }
+  });
+}, { rootMargin: '0px 0px -75% 0px' });
+heads.forEach(h => obs.observe(h));
+</script>
+</body>
+</html>

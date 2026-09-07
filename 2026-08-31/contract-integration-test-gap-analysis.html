@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contract &amp; Integration Test Gap Analysis — August 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #9ca3af;
+    --accent: #6366f1;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 0.95rem; }
+  .grid { display: grid; gap: 20px; margin-bottom: 24px; }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card h3 { font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .stat { font-size: 2.4rem; font-weight: 700; }
+  .stat-sub { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+  .stat-red { color: var(--red); }
+  .stat-orange { color: var(--orange); }
+  .stat-yellow { color: var(--yellow); }
+  .stat-green { color: var(--green); }
+  .chart-card { min-height: 300px; }
+  .chart-card canvas { max-height: 280px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: rgba(99,102,241,0.05); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-p0 { background: rgba(239,68,68,0.2); color: var(--red); }
+  .badge-p1 { background: rgba(249,115,22,0.2); color: var(--orange); }
+  .badge-p2 { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .badge-p3 { background: rgba(156,163,175,0.15); color: var(--muted); }
+  .badge-contract { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+  .badge-integration { background: rgba(34,197,94,0.2); color: #86efac; }
+  .badge-parity { background: rgba(236,72,153,0.2); color: #f9a8d4; }
+  .badge-preventable { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-recur { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+  .category-tag { margin-right: 6px; }
+  .sentry-events { color: var(--red); font-weight: 600; }
+  .section-title { font-size: 1.2rem; font-weight: 600; margin: 32px 0 16px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .callout {
+    background: rgba(99,102,241,0.1);
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 24px 0;
+    font-size: 0.9rem;
+  }
+  .callout strong { color: var(--accent); }
+  .callout-warn {
+    background: rgba(239,68,68,0.08);
+    border-left: 3px solid var(--red);
+  }
+  .callout-warn strong { color: #fca5a5; }
+  code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
+  ul, ol { margin-left: 20px; }
+  li { margin-bottom: 6px; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<h1>Contract &amp; Integration Test Gap Analysis</h1>
+<p class="subtitle">Evidence Dashboard — CORE Project, 2026-07-21 → 2026-08-31 refresh | Author: Maria Rebelo | <a href="./contract-integration-testing-implementation-guide.html">Implementation Guide →</a> | <a href="../2026-07-20/contract-integration-test-gap-analysis.html">← July snapshot</a> · <a href="../2026-06-26/contract-integration-test-gap-analysis.html">June baseline</a></p>
+
+<!-- Tab Navigation -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('recent', this)">August Snapshot (6wk)</button>
+  <button class="tab-btn" onclick="switchTab('sixty', this)">Trend Since May</button>
+  <button class="tab-btn" onclick="switchTab('ceiling', this)">Where Tests Hit Their Ceiling</button>
+  <button class="tab-btn" onclick="switchTab('verification', this)">Code Verification</button>
+  <button class="tab-btn" onclick="switchTab('poc', this)">Design &amp; Implementation</button>
+</div>
+
+<!-- ============ TAB 1: AUGUST SNAPSHOT ============ -->
+<div id="tab-recent" class="tab-panel active">
+
+<div class="grid grid-4">
+  <div class="card">
+    <h3>Total CORE Bugs</h3>
+    <div class="stat">325</div>
+    <div class="stat-sub">2026-07-21 → 2026-08-31 (6 weeks)</div>
+  </div>
+  <div class="card">
+    <h3>P0 + P1</h3>
+    <div class="stat stat-red">126</div>
+    <div class="stat-sub">57 P0 blockers · 69 P1 criticals</div>
+  </div>
+  <div class="card">
+    <h3>Contract / Sync / Parity</h3>
+    <div class="stat stat-orange">48</div>
+    <div class="stat-sub">14.8% of all bugs · 24 are P0/P1</div>
+  </div>
+  <div class="card">
+    <h3>Categorized Rate</h3>
+    <div class="stat stat-yellow">8.0<span style="font-size:1rem;color:var(--muted)">/wk</span></div>
+    <div class="stat-sub">vs 7.0/wk in July — flat</div>
+  </div>
+</div>
+
+<div class="callout">
+  <strong>The finding is not the share — it is that the rate is flat and the interfaces repeat.</strong><br>
+  Three snapshots across three months land between 7 and 8 categorized bugs per week every time. The interface named <strong>target #1 in the July proposal — Speedtest provider overrides — produced 7 more bugs in this window</strong> and received zero contract tests. Multi-WAN / WAN links has displaced it as the highest-volume boundary with <strong>19 bugs, 9 of them P0</strong>. And <a href="#tab-ceiling" onclick="switchTab('ceiling', document.querySelectorAll('.tab-btn')[2])">CORE-33235 is a MACsec recurrence on the exact interface the shipped tests cover</a>.
+</div>
+
+<div class="grid grid-2">
+  <div class="card chart-card">
+    <h3>Weekly Bug Volume by Priority (W30–W35)</h3>
+    <canvas id="trendChart"></canvas>
+  </div>
+  <div class="card chart-card">
+    <h3>Categorized Bugs by Failure Type</h3>
+    <canvas id="categoryChart"></canvas>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card chart-card">
+    <h3>Priority Distribution (325 bugs)</h3>
+    <canvas id="priorityChart"></canvas>
+  </div>
+  <div class="card chart-card">
+    <h3>Bug Volume by Interface / Area</h3>
+    <canvas id="componentChart"></canvas>
+  </div>
+</div>
+<p style="color: var(--muted); font-size: 0.8rem; margin: -12px 0 24px;">Interface counts are keyword-matched on ticket summaries across all 325 bugs, so areas can overlap. Multi-WAN, Speedtest and MACsec counts were verified ticket by ticket.</p>
+
+<div class="section-title">Category 1 — API Contract Violations <span class="badge badge-contract">15 bugs · 4 P0/P1</span></div>
+<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">One service produces data another cannot consume: schema, nullability, error codes, enums, key formats, required fields.</p>
+<table>
+<thead>
+<tr><th>Ticket</th><th>Priority</th><th>Summary</th><th>Preventable By</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33144">CORE-33144</a></td><td><span class="badge badge-p0">P0</span></td><td>DynamicKV/throttle reads during startup <strong>silently return defaults</strong> — AppConfig warming is async and <code>get()</code> non-blocking. Regression from CORE-31102 (2026-07-22) removing <code>RoutingDynamicKVService</code>; Consul's <code>get()</code> used to block until warm</td><td>Contract test: a read before warm-up blocks or signals unavailability — never indistinguishable from a real default</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32415">CORE-32415</a></td><td><span class="badge badge-p1">P1</span></td><td>Insight Speedtest page crashes on an offline network — <code>Cannot read properties of null (reading 'network_group')</code>. <strong>API returns 200 OK with valid data</strong>; frontend assumes <code>gateway</code> is non-null</td><td>Contract test: response schema declares <code>gateway</code> nullable, and the consumer renders a network without one</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33202">CORE-33202</a></td><td><span class="badge badge-p1">P1</span></td><td><code>POST /organizations/{id}/users</code> returns 400 <code>error.organization.user.not.created</code> for <strong>every</strong> email, including guaranteed-unique fresh addresses. Blocks node-automation's <code>isp_tech_login</code> suite</td><td>Contract test: a valid create with a unique email returns 201; failure codes are typed and distinguishable from a uniqueness conflict</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32551">CORE-32551</a></td><td><span class="badge badge-p1">P1</span></td><td>All <code>/cellular_profile/:id/verizon/delete</code> calls time out and fail with HTTP 500 even with retries, blocking Verizon prod profile-switching suites</td><td>Contract test: the endpoint returns a typed 2xx/4xx for known inputs — 500 is never a contracted outcome</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32502">CORE-32502</a></td><td><span class="badge badge-p2">P2</span></td><td>WAN links created without a name break Insight. <strong>Cloud marks <code>name</code> optional; the Apollo GraphQL contract declares it required</strong> — the query fails whenever it is absent</td><td>Contract test: producer optionality and consumer schema assert against one shared source — <code>name</code>, <code>port</code>, <code>eero_id</code>, <code>priority</code> agree on both sides</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33044">CORE-33044</a></td><td><span class="badge badge-p2">P2</span></td><td>On boot a Multi-WAN node fetches <code>/config</code> and the response <strong>omits the <code>wan</code> field</strong>, silently disabling Multi-WAN. A later <code>config</code> action returns it correctly</td><td>Contract test: <code>/config</code> always includes <code>wan</code> for a Multi-WAN-enabled node, boot path included</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33380">CORE-33380</a></td><td><span class="badge badge-p2">P2</span></td><td><code>GetNetworkNodes</code> returns gRPC <code>INTERNAL</code> (13) when DynamoDB reads are throttled — <span class="sentry-events">1,744 of ~171k calls</span> in the 19:00 UTC hour on 2026-08-28. Pages core on-call; alert has flapped <span class="sentry-events">212 times</span></td><td>Contract test: a throttled downstream maps to a retryable status, never <code>INTERNAL</code></td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32316">CORE-32316</a></td><td><span class="badge badge-p2">P2</span></td><td>Per-port "Test Ethernet cable" runs the check on <strong>ALL</strong> ports — the port parameter is ignored, value-independently</td><td>Contract test: the per-port request scopes to exactly the port in the payload</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32295">CORE-32295</a></td><td><span class="badge badge-p2">P2</span></td><td>Override resolution: when the highest-priority layer holds a runtime-ineligible provider, resolution falls to Default instead of ceding to the next valid layer — silently discarding a working override</td><td>Contract test: resolution over the 6 targeting layers cedes to the next eligible layer, asserted layer by layer</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32964">CORE-32964</a></td><td><span class="badge badge-p2">P2</span></td><td><code>/nodes/:id</code> redirect only special-cases 403/404. Unauthenticated users are not sent to login, and an out-of-range id shows a bare "Error loading data" instead of not-found</td><td>Contract test: every declared status maps to a defined client outcome — no fall-through</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32695">CORE-32695</a></td><td><span class="badge badge-p3">P3</span></td><td><code>PUT /2.2/networks/:id/settings</code> does not validate <code>nat_port_randomization</code>: string <code>"true"</code> is accepted (200), coerced, stored, <strong>and reboots the network</strong>; <code>null</code> returns 200; only a number returns 400</td><td>Contract test: non-boolean values for a boolean field are rejected 400 — no coercion, no side effects</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32631">CORE-32631</a></td><td><span class="badge badge-p3">P3</span></td><td>Override endpoints never validate network existence. <code>GET</code> on a phantom id returns 200 with <code>metadata:null</code> instead of 404; <code>PUT</code> returns 200 and <strong>persists a real orphan record</strong></td><td>Contract test: writes to a non-existent resource return 404 and persist nothing</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33268">CORE-33268</a></td><td><span class="badge badge-p3">P3</span></td><td><code>remote-nodes.phi-accrual-value:∞|g</code> — the detector emits <code>Double.PositiveInfinity</code>, <code>DecimalFormat</code> renders the Unicode glyph, and Telegraf's statsd parser cannot read it as float64. Paged PROD</td><td>Contract test: every emitted gauge is a finite float64 on the wire; non-finite values clamped or dropped at the emit boundary</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33094">CORE-33094</a></td><td><span class="badge badge-p3">P3</span></td><td>Duplicate-override guard bypassable via firmware normalization: the field accepts <code>7.13.0</code> and <code>v7.13.0</code>, backend normalizes to <code>v7.13.0</code>, client conflict check compares the <strong>raw</strong> string — so the PUT is sent and rejected 400 instead of blocked inline</td><td>Contract test: firmware-version keys are normalized identically on both sides before comparison</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32903">CORE-32903</a></td><td><span class="badge badge-p3">P3</span></td><td>Dejavu absent from <code>HwModelCapabilityService.wlanRateLimitPolicyCapable</code> (allows Crane, Novo, Snowbird) with no firmware gate — a PUT subnet carrying <code>ratelimitConfig</code> is rejected <code>InvalidRateLimitParameters</code> on any Dejavu node</td><td>Contract test: capability tables are exhaustive over the hw-model enum — adding a model fails until every table is reviewed</td></tr>
+</tbody>
+</table>
+
+<div class="section-title">Category 2 — Data Sync / State Mismatch <span class="badge badge-integration">16 bugs · 12 P0/P1</span></div>
+<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">Two systems hold contradictory state about the same entity — the app says X, the device says Y; a write is acknowledged and never applied; state transitions never complete.</p>
+<table>
+<thead>
+<tr><th>Ticket</th><th>Priority</th><th>Summary</th><th>Preventable By</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33057">CORE-33057</a></td><td><span class="badge badge-p0">P0</span></td><td>A non-blocking antenna warning during Connect to Leo lets setup report <strong>success</strong> while the network exists in the backend only — offline in admin, Ladro attached to nothing, network never appears in the app</td><td>Integration test: setup reports success only after the network is reachable through the read path the app uses</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33304">CORE-33304</a></td><td><span class="badge badge-p0">P0</span></td><td>A failed WAN setup leaves an <strong>orphaned WAN connection</strong> in the backend. Android renders no inactive entry; iOS does — the same orphan is invisible on one platform and visible on the other</td><td>Integration test: a failed setup persists nothing, and both clients render the post-failure state identically</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33341">CORE-33341</a></td><td><span class="badge badge-p0">P0</span></td><td>With primary WAN down, a secondary <strong>VLAN</strong> WAN carries traffic and the network is online, but reports <code>active: false</code> — so the app shows the connection as "Ready". Reproduces on DHCP+VLAN, Static+VLAN, PPPoE+VLAN; not without VLAN</td><td>Integration test: <code>active</code> tracks the actual default route across every connection type, VLAN variants included</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33320">CORE-33320</a></td><td><span class="badge badge-p0">P0</span></td><td>Retail Residential customers cannot change SSID or password from App or Insight. <strong>The change is written to the audit log but never applied</strong>; support could not do it either and fell back to Admin</td><td>Integration test: after a write returns success the next read returns the new value — audit-log success is not acceptance</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33188">CORE-33188</a></td><td><span class="badge badge-p0">P0</span></td><td>On a business network the guest bandwidth limit cannot be disabled — toggling off and saving silently retains the previous value</td><td>Integration test: a save that clears a limit is reflected on the next read; disable is not a no-op</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32917">CORE-32917</a></td><td><span class="badge badge-p1">P1</span></td><td>Backup WAN reports <code>active: true</code> while the default route is still on the primary (eth1)</td><td>Integration test: exactly one WAN link reports <code>active: true</code>, and it holds the default route</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33148">CORE-33148</a></td><td><span class="badge badge-p1">P1</span></td><td>Mirror image: after the backup link reaches <code>CONFIGURED</code>, the primary stays <code>active: false</code> despite state <code>ONLINE</code> and carrying the traffic</td><td>Integration test: same invariant asserted from both directions after a link-state transition</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32327">CORE-32327</a></td><td><span class="badge badge-p1">P1</span></td><td>Foghorn and Retrograde accessories are <strong>still returned by <code>GetEerosDetail</code> after removal</strong> — but only while they remain plugged in</td><td>Integration test: after a removal returns success the accessory is absent from the read path regardless of power state</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32515">CORE-32515</a></td><td><span class="badge badge-p1">P1</span></td><td>"Resume Profile" does not unpause devices when a scheduled pause is active and a device is also individually paused. <span class="badge badge-recur">~2 years old</span> — confirmed by T2 on 2026-07-03</td><td>Integration test: manual resume clears the effective block regardless of which pause sources are stacked</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32463">CORE-32463</a></td><td><span class="badge badge-p1">P1</span></td><td>Saving a new network name in bridge mode does not reflect the change in the app or Insight</td><td>Integration test: SSID write → read round-trip asserted in bridge mode, not just routed mode</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32859">CORE-32859</a></td><td><span class="badge badge-p1">P1</span></td><td>The physical port LED is off while the app reports PoE enabled — the user cannot visually confirm which ports deliver power</td><td>Integration test: rendered PoE state derives from device-reported port state, not the requested configuration</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33055">CORE-33055</a></td><td><span class="badge badge-p1">P1</span></td><td>Verizon activation sometimes fails and <strong>issues multiple ICCIDs</strong> for one device</td><td>Integration test: a retried activation is idempotent — one device converges on one ICCID</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32766">CORE-32766</a></td><td><span class="badge badge-p2">P2</span></td><td>When the Consul KV read for traffic policies fails, xds swallows the error, substitutes an <strong>empty</strong> policy map, and pushes a snapshot reverting <strong>the entire fleet</strong> to <code>DefaultTrafficPolicy</code>. <span class="badge badge-recur">Since 2020-06-11</span></td><td>Integration test: a KV read failure aborts the push and retains the last good map — empty is never a valid substitute</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33364">CORE-33364</a></td><td><span class="badge badge-p2">P2</span></td><td>Manual→Automatic IP switch is not applied uniformly: Guest and both Business subnets revert to default range while the main network (<code>br-lan</code>) keeps the old manual IP, leaving the gateway inconsistent</td><td>Integration test: an addressing-mode change applies to every subnet or to none</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33309">CORE-33309</a></td><td><span class="badge badge-p3">P3</span></td><td>23 Trieste serials — <strong>already sold to customers</strong> — have no node properties in <code>hardwaredata</code> at all. The known-eero-sync forward-only cursor advances past rows not yet on a lagging replica, leaving them permanently below the watermark. <span class="badge badge-recur">Recurrence of CORE-32469, same window</span>; backfilled via cloud PR #29287</td><td>Integration test: every node written on the factory line is readable from cloud within N minutes; the cursor cannot advance past unread rows</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32694">CORE-32694</a></td><td><span class="badge badge-p3">P3</span></td><td>NAT Port Mode applies as a separate non-atomic mutation. When DHCP succeeds and NAT fails, the form closes with a generic toast and <strong>no indication that the DHCP change was applied</strong> — split state is hidden</td><td>Integration test: a partial-failure save reports which half applied, or rolls back</td></tr>
+</tbody>
+</table>
+
+<div class="section-title">Category 3 — Interface Parity / Schema Drift <span class="badge badge-parity">17 bugs · 8 P0/P1</span></div>
+<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">iOS, Android, Insight and Web disagree on how to interpret the same data.</p>
+<table>
+<thead>
+<tr><th>Ticket</th><th>Priority</th><th>Summary</th><th>Preventable By</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32690">CORE-32690</a></td><td><span class="badge badge-p0">P0</span></td><td>For an active eero Plus subscriber, "Additional wifi networks" appears in Settings on AOS and is <strong>absent entirely on iOS</strong> — same account, same network</td><td>Contract test: the Settings row set derives from a shared entitlement predicate asserted identically on both platforms</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32310">CORE-32310</a></td><td><span class="badge badge-p0">P0</span></td><td>The "BroadbandNow" link inside the WAN IP support article returns <strong>403 from CloudFront on Android</strong>; the same flow works on iOS</td><td>Contract test: outbound support-article link targets resolve on both platforms from the same article source</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33269">CORE-33269</a></td><td><span class="badge badge-p0">P0</span></td><td>Adaptive Ethernet (WAN Power Optimization) missing on <strong>both Mobile and Insight</strong> for the Dejavu model only, blocking the whole WAN Power Optimization run (TestRail 170838)</td><td>Contract test: capability→UI surfacing is exhaustive over the hw-model enum on every client — see CORE-32903, the cloud-side twin</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33185">CORE-33185</a></td><td><span class="badge badge-p1">P1</span></td><td>Activate Subscription license-key field: iOS accepts space characters while typing and errors only on Next; Android rejects the space as text outright</td><td>Contract test: field-level validation for the license key is one shared rule asserted on both platforms</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32748">CORE-32748</a></td><td><span class="badge badge-p1">P1</span></td><td>On a B2B network the eco-efficiency page is <strong>entirely different</strong> on AOS — adaptive ethernet and power-saving-schedule rows missing. 5/5 reproducibility</td><td>Contract test: the eco-efficiency row set for a B2B network is one shared list read by both platforms</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32666">CORE-32666</a></td><td><span class="badge badge-p1">P1</span></td><td>A wired leaf on physical Port 1 is reported as "Port 2" by Android; iOS correctly shows Port 1. Same eeroOS 7.17.0-12695. <span class="badge badge-recur">Recurrence of CORE-31750</span></td><td>Contract test: <code>connected_to.port</code> semantics are fixed in the API spec and asserted identically by iOS and Android</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32595">CORE-32595</a></td><td><span class="badge badge-p1">P1</span></td><td>The Data Pack "running low" alert fires at 80% on both iOS and Android where the spec is ≥90% — both clients hardcode the same wrong threshold</td><td>Contract test: the alert threshold is a single shared constant sourced from the API, not a per-client literal</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33165">CORE-33165</a></td><td><span class="badge badge-p1">P1</span></td><td>Restarting one leaf makes <strong>all</strong> eeros show "Restarting" on the Android home screen; iOS correctly scopes the status to the restarted node</td><td>Contract test: per-node status is keyed by node id on both platforms — a status event never fans out to siblings</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33235">CORE-33235</a></td><td><span class="badge badge-p2">P2</span></td><td><strong>MACsec recurrence.</strong> The app shows Port Security enabled on a port where neither the node's bookshelf nor cloud <code>state_data</code> reports MACsec — and cloud reports the port as not MACsec-capable. The app renders it enabled whenever the <strong>pair-facing</strong> port is enabled. Novo-Crane and Novo-Snowbird, not Hornbill-Crane <span class="badge badge-recur">escaped the shipped tests</span></td><td>Contract test: the per-port <code>enabled</code> predicate is asserted per port against node-reported state, not derived from a paired port</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32446">CORE-32446</a></td><td><span class="badge badge-p2">P2</span></td><td>The iOS IP Addresses info popup omits the IPv6 summary section that Android renders inline</td><td>Contract test: info-popup section set comes from one shared content map</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32517">CORE-32517</a></td><td><span class="badge badge-p3">P3</span></td><td>On first network creation Android presets the timezone to Pacific Standard Time while iOS shows "No timezone set" — divergent defaults for a value time-dependent features read</td><td>Contract test: the new-network default timezone is one shared value; "unset" is valid on both platforms or neither</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32470">CORE-32470</a></td><td><span class="badge badge-p3">P3</span></td><td>With eero Plus enabled, the Internet page shows a "Mobile backup" row on AOS and omits it on iOS</td><td>Contract test: the Connections row set is one shared list keyed by entitlement</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32473">CORE-32473</a></td><td><span class="badge badge-p3">P3</span></td><td>Android renders an "Idle" subtext where the value belongs on the live-data-usage screen. <span class="badge badge-recur">Recurrence of CORE-31458</span></td><td>Contract test: zero-value throughput formatting is defined in the shared schema and rendered identically</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32320">CORE-32320</a></td><td><span class="badge badge-p3">P3</span></td><td>Internet backup dismissal control and the added-backup-network heading differ between Android and iOS</td><td>Contract test: heading and control affordance map to shared localization keys</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32472">CORE-32472</a></td><td><span class="badge badge-p3">P3</span></td><td>Sort-by option labels differ between AOS and iOS</td><td>Contract test: sort-option labels map to shared localization keys</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32664">CORE-32664</a></td><td><span class="badge badge-p3">P3</span></td><td>The Android port-forwarding "already in use" error message is inconsistent with iOS for the same server-side conflict</td><td>Contract test: a given conflict response maps to one shared user-facing string on both platforms</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32747">CORE-32747</a></td><td><span class="badge badge-p3">P3</span></td><td>Top Devices and Profile headers missing on the Scans/Threats/Filters sessions across AOS and iOS. <span class="badge badge-recur">Recurrence of CORE-32156</span></td><td>Contract test: the detail-view required-field set is asserted from the shared schema on both platforms</td></tr>
+</tbody>
+</table>
+
+<div class="section-title">The Interfaces Repeat — And They Are the Ones We Named</div>
+
+<div class="callout callout-warn">
+  <strong>Speedtest provider overrides was target interface #1 in the July proposal.</strong> In this window it produced <strong>7 more bugs</strong> — six of them contract defects. Zero contract tests were added to that interface between the July proposal and today.
+</div>
+
+<table>
+<thead><tr><th>Ticket</th><th>Priority</th><th>Defect</th></tr></thead>
+<tbody>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32415">CORE-32415</a></td><td><span class="badge badge-p1">P1</span></td><td>Page crash on null <code>gateway</code> — API returns 200</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32295">CORE-32295</a></td><td><span class="badge badge-p2">P2</span></td><td>Resolution falls to Default instead of ceding to the next eligible layer</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32296">CORE-32296</a></td><td><span class="badge badge-p3">P3</span></td><td>No-op Save fires a persisting PUT and bumps the version — churns shared-scope records</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32631">CORE-32631</a></td><td><span class="badge badge-p3">P3</span></td><td>PUT to a non-existent network returns 200 and persists an orphan</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33092">CORE-33092</a></td><td><span class="badge badge-p3">P3</span></td><td>Bundle offers <code>EeroUdpAutomatic</code> as a target provider (should be excluded)</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33094">CORE-33094</a></td><td><span class="badge badge-p3">P3</span></td><td>Duplicate guard bypassable via firmware <code>v</code>-prefix normalization</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32628">CORE-32628</a></td><td><span class="badge badge-p3">P3</span></td><td>Override drawers do not manage focus (WCAG 2.4.3 / 2.1.2) — not contract-related, listed for completeness</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+  <strong>Multi-WAN / WAN links is the new highest-volume boundary: 19 bugs, 9 of them P0.</strong><br>
+  CORE-32502, 32613, 32614, 32660, 32870, 32917, 33032, 33033, 33044, 33081, 33148, 33186, 33248, 33269, 33304, 33305, 33341, 33355, 32283.<br>
+  It spans node → cloud → iOS → Android → Insight, it is under active development, and it is producing all three failure shapes at once. <strong>It should be the next reference implementation.</strong>
+</div>
+
+<div class="section-title">Chronic Offenders (still firing)</div>
+<table>
+<thead><tr><th>Ticket</th><th>Age / scale</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32766">CORE-32766</a></td><td>Since <strong>2020-06-11</strong></td><td>A single transient Consul KV read error reverts the entire fleet's traffic policies to defaults. Six years old, fleet-wide, still open</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-32515">CORE-32515</a></td><td>~<strong>2 years</strong></td><td>Scheduled-pause + manual-resume interaction leaves devices paused. Confirmed by T2 on 2026-07-03</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33309">CORE-33309</a></td><td>Recurrence <strong>in the same window</strong></td><td>Same forward-only cursor watermark bug as CORE-32469, now losing all node properties instead of just the MAC — for 23 nodes already sold to customers</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33380">CORE-33380</a></td><td><span class="sentry-events">212</span> alert state changes</td><td>Throttling surfaced as gRPC <code>INTERNAL</code>; pages core on-call and flaps at its threshold</td></tr>
+<tr><td><a href="https://eeroinc.atlassian.net/browse/CORE-33144">CORE-33144</a></td><td>Introduced <strong>2026-07-22</strong></td><td>Removing <code>RoutingDynamicKVService</code> turned a blocking read into a silent default. Six weeks from merge to P0</td></tr>
+<tr><td>CORE-32666 / 32473 / 32747</td><td>Recurrences</td><td>Three July parity bugs (CORE-31750 / 31458 / 32156) reopened as new tickets on the same interfaces</td></tr>
+</tbody>
+</table>
+
+<div class="section-title">Customer Impact (P0/P1 highlights)</div>
+<ul style="font-size: 0.9rem;">
+  <li><strong>CORE-33320 (P0):</strong> Retail Residential customers cannot change their SSID or password from App or Insight — the change is audit-logged and never applied; support agents could not do it either</li>
+  <li><strong>CORE-33057 (P0):</strong> Users complete Leo setup, are told it succeeded, and have no working network and no error — the network exists in the backend only, offline and invisible to the app</li>
+  <li><strong>CORE-33341 (P0):</strong> A VLAN WAN carries live traffic while reporting <code>active: false</code>, so the app tells the customer the connection is merely "Ready"</li>
+  <li><strong>CORE-33309:</strong> 23 nodes shipped to customers with no properties in cloud — they cannot be set up correctly</li>
+  <li><strong>CORE-32515 (P1):</strong> Two years of customers tapping "Resume Profile" and watching their kids' devices stay blocked</li>
+  <li><strong>CORE-32766 (P2 by priority, fleet-wide by blast radius):</strong> One transient KV read failure silently reverts every service's traffic policy</li>
+</ul>
+
+</div>
+
+<!-- ============ TAB 2: TREND ============ -->
+<div id="tab-sixty" class="tab-panel">
+
+<div class="callout">
+  <strong>Three snapshots, sixteen weeks, one flat line.</strong> The categorized rate has held between 7 and 8 bugs per week across every window measured. Nothing here is improving on its own.
+</div>
+
+<div class="grid grid-4">
+  <div class="card">
+    <h3>June baseline</h3>
+    <div class="stat">12</div>
+    <div class="stat-sub">60-day window, hand-picked set</div>
+  </div>
+  <div class="card">
+    <h3>July refresh</h3>
+    <div class="stat stat-yellow">7.0<span style="font-size:1rem;color:var(--muted)">/wk</span></div>
+    <div class="stat-sub">24 categorized over 24 days</div>
+  </div>
+  <div class="card">
+    <h3>August refresh</h3>
+    <div class="stat stat-orange">8.0<span style="font-size:1rem;color:var(--muted)">/wk</span></div>
+    <div class="stat-sub">48 categorized over 42 days</div>
+  </div>
+  <div class="card">
+    <h3>Preventable P0/P1</h3>
+    <div class="stat stat-red">13 → 24</div>
+    <div class="stat-sub">Absolute count nearly doubled</div>
+  </div>
+</div>
+
+<div class="card chart-card" style="margin-bottom: 24px;">
+  <h3>Weekly Bug Volume by Priority — W20 through W35 (May → August)</h3>
+  <canvas id="sixtyTrendChart"></canvas>
+</div>
+
+<div class="grid grid-2">
+  <div class="card chart-card">
+    <h3>Categorized Rate per Week, by Snapshot</h3>
+    <canvas id="rateChart"></canvas>
+  </div>
+  <div class="card chart-card">
+    <h3>August Priority Mix (325 bugs)</h3>
+    <canvas id="sixtyPriorityChart"></canvas>
+  </div>
+</div>
+
+<div class="section-title">Snapshot Comparison</div>
+<table>
+<thead><tr><th></th><th>June 26 baseline</th><th>July 20 refresh</th><th>Aug 31 refresh</th></tr></thead>
+<tbody>
+<tr><td>Window</td><td>60 days</td><td>24 days</td><td>42 days</td></tr>
+<tr><td>Total CORE bugs</td><td>—</td><td>167 (48.7/wk)</td><td><strong>325 (54.2/wk)</strong></td></tr>
+<tr><td>Categorized</td><td>12</td><td>24 (7.0/wk)</td><td><strong>48 (8.0/wk)</strong></td></tr>
+<tr><td>Categorized share of all</td><td>~40%*</td><td>14.4%</td><td><strong>14.8%</strong></td></tr>
+<tr><td>Categorized share of P0/P1</td><td>—</td><td>24.5% (13/53)</td><td><strong>19.0% (24/126)</strong></td></tr>
+</tbody>
+</table>
+<p style="color: var(--muted); font-size: 0.8rem; margin-top: 12px;">* The June figure used a narrower, hand-picked "defensibly preventable" set over a 60-day window and is not rate-comparable; shown for continuity only.</p>
+
+<div class="callout">
+  <strong>Why the P0/P1 share dropped from 24.5% to 19.0% while the problem got worse.</strong><br>
+  Overall P0/P1 volume grew faster (53 → 126) than the categorized slice did (13 → 24). The share is a ratio against a much larger denominator. The absolute count of preventable P0/P1 bugs nearly doubled. Reporting the share alone would understate this; reporting the count alone would overstate it, because the window is 75% longer. Both are above.
+</div>
+
+</div>
+
+<!-- ============ TAB 3: CEILING ============ -->
+<div id="tab-ceiling" class="tab-panel">
+
+<div class="callout callout-warn">
+  <strong>CORE-33235 landed against MACsec Port Security — the interface with 12 contract tests and 3 integration tests merged on each platform. The tests passed. The bug shipped.</strong><br>
+  This section is the argument against over-claiming for the approach that shipped, and it is the reason the <a href="./contract-integration-testing-implementation-guide.html">implementation guide</a> presents two approaches rather than one.
+</div>
+
+<div class="section-title">Why the shipped tests missed it</div>
+<table>
+<thead><tr><th>What the shipped tests assert</th><th>What CORE-33235 actually is</th></tr></thead>
+<tbody>
+<tr><td>The client <strong>decodes</strong> a Port Security payload correctly — field types, malformed-input tolerance, enum handling</td><td>The client decoded correctly, then <strong>derived</strong> the wrong thing from correct data</td></tr>
+<tr><td>Golden fixtures represent payload shapes captured from the API</td><td>The fixtures had no case for a port whose <em>pair-facing</em> port is enabled while it is not</td></tr>
+<tr><td>Integration tests assert the ViewModel emits the state the API reported</td><td>The app renders <code>enabled</code> for the WAN port whenever the pair-facing port is enabled — a client-side derivation the API never asked for</td></tr>
+</tbody>
+</table>
+
+<div class="section-title">Three honest conclusions</div>
+
+<div class="card" style="margin-bottom: 16px;">
+  <h3>1 — A decode-boundary test does not cover a derivation</h3>
+  <p style="font-size: 0.9rem;">The fix is a contract test on the <em>predicate</em>: for each port, <code>enabled</code> must equal the node-reported state for <strong>that</strong> port. Not a broader framework. This is cheap and should be added to both platforms now.</p>
+</div>
+
+<div class="card" style="margin-bottom: 16px;">
+  <h3>2 — Golden fixtures only cover shapes someone thought to record</h3>
+  <p style="font-size: 0.9rem;">The pair-facing-port case existed in the hardware — reproducible on Novo-Crane and Novo-Snowbird, not on Hornbill-Crane — and not in the fixture set. Fixture coverage is a function of imagination, which is the same weakness as mocks, just shared between platforms instead of per-developer.</p>
+</div>
+
+<div class="card" style="margin-bottom: 16px;">
+  <h3>3 — This is where consumer-driven contracts earn their cost</h3>
+  <p style="font-size: 0.9rem;">A Pact-style contract makes the consumer's expectation an artifact the <strong>provider</strong> verifies. Cloud already reported this port as not MACsec-capable — the correct data existed on the cloud side. A provider-verified contract declaring "the client renders <code>enabled</code> only for ports reported capable <strong>and</strong> enabled" would have failed in cloud CI, where the truth already lived.</p>
+</div>
+
+<div class="callout">
+  <strong>What this does not mean.</strong> The shipped approach is not wrong and does not need replacing. It caught a real class of bug at zero infrastructure cost and it gates every PR today. What CORE-33235 shows is the boundary of what a client-side fixture test can see: it validates the client against a recording, and a recording cannot disagree with you. Provider verification is what makes the other side of the boundary answerable.
+</div>
+
+<div class="section-title">The generalized lesson for the top-5 interfaces</div>
+<table>
+<thead><tr><th>Interface</th><th>Client-side fixture test reaches it?</th><th>Needs provider verification?</th></tr></thead>
+<tbody>
+<tr><td>Multi-WAN <code>active</code> flag vs default route</td><td><span class="badge badge-p3">No</span> — the truth is the node's routing table</td><td><span class="badge badge-preventable">Yes</span></td></tr>
+<tr><td>Speedtest override nullability &amp; existence validation</td><td><span class="badge badge-p2">Partly</span> — nullability yes, PUT-persists-orphan no</td><td><span class="badge badge-preventable">Yes</span> for the write path</td></tr>
+<tr><td>Capability tables over the hw-model enum</td><td><span class="badge badge-p2">Partly</span> — client half only (CORE-33269)</td><td><span class="badge badge-preventable">Yes</span> for the cloud twin (CORE-32903)</td></tr>
+<tr><td>Settings write→read round-trips</td><td><span class="badge badge-p3">No</span> — a fixture cannot fail to persist</td><td><span class="badge badge-preventable">Yes</span></td></tr>
+<tr><td>Cloud error-code and emit-boundary contracts</td><td><span class="badge badge-p3">No</span> — entirely producer-side</td><td><span class="badge badge-preventable">Yes</span></td></tr>
+<tr><td>iOS/Android label &amp; localization parity</td><td><span class="badge badge-preventable">Yes</span> — this is exactly its strength</td><td>No</td></tr>
+</tbody>
+</table>
+<p style="color: var(--muted); font-size: 0.85rem; margin-top: 12px;">15 of the 48 categorized bugs in this window are producer-side defects that no client-only test can catch. That is the case for handing the cloud side to Cloud Engineering with a real implementation guide rather than a proposal.</p>
+
+</div>
+
+<!-- ============ TAB 4: CODE VERIFICATION ============ -->
+<div id="tab-verification" class="tab-panel">
+
+<div class="callout">
+  <strong>Status update since the June audit.</strong><br>
+  Contract tests are <strong>merged on both platforms</strong> — Android PR #13181 (2026-07-30, commit <code>dd9f38f4</code>) and iOS PR #14285 (2026-08-03, commit <code>74221e2c</code>), each adding 12 CT-* scenarios plus 3 real integration tests, running in the standard unit suite on every PR.<br><br>
+  <strong>New in this refresh — the cloud repo is now auditable.</strong> June and July recorded the Scala monolith as "cannot confirm or deny". It has since been checked out locally and the build files verified directly. The counts in the table below are still the June audit; the August refresh focused on new bug evidence and the cloud build audit, not a re-audit of the June fix set.
+</div>
+
+<div class="section-title">Cloud build audit — verified against <code>eero-inc/cloud</code> at <code>main</code></div>
+<table>
+<thead><tr><th>Claim in the May RFCs</th><th>Verified state</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td>Scala 2.12</td><td><code>scalaVersion := "2.13.18"</code></td><td><span class="badge badge-p1">Stale — corrected</span></td></tr>
+<tr><td>sbt 1.12</td><td><code>sbt.version=1.12.1</code> in <code>project/build.properties</code></td><td><span class="badge badge-preventable">Confirmed</span></td></tr>
+<tr><td>Play Framework 2.9</td><td><code>"com.typesafe.play" % "sbt-plugin" % "2.9.10"</code></td><td><span class="badge badge-preventable">Confirmed</span></td></tr>
+<tr><td>GitLab CI with <code>cl generateTestsPipeline</code></td><td><code>.gitlab-ci.yml:134</code></td><td><span class="badge badge-preventable">Confirmed</span></td></tr>
+<tr><td>Pact already present?</td><td>No match for <code>pact</code> in <code>project/Dependencies.scala</code> or <code>build.sbt</code></td><td><span class="badge badge-p3">None — greenfield</span></td></tr>
+<tr><td>House test frameworks (not in the RFCs)</td><td>ScalaTest 3.2.19, scalatestplus-play 6.0.0, mockito-5-18, scalacheck-1-18. 13 modules</td><td><span class="badge badge-p2">New finding</span></td></tr>
+</tbody>
+</table>
+
+<div class="callout callout-warn">
+  <strong>The new finding matters for the handoff.</strong> pact-jvm's provider-verification API is JUnit5-first, while <code>eero-inc/cloud</code> standardizes on ScalaTest. That is a real integration decision the May RFCs did not cover — the <a href="./contract-integration-testing-implementation-guide.html">implementation guide</a> addresses it directly.
+</div>
+
+<div class="section-title">June audit findings (carried forward)</div>
+<div class="grid grid-4">
+  <div class="card">
+    <h3>Verified Fixes with Tests</h3>
+    <div class="stat stat-green">5 / 6</div>
+    <div class="stat-sub">83% of auditable fixes (all retroactive)</div>
+  </div>
+  <div class="card">
+    <h3>Fixed WITHOUT Tests</h3>
+    <div class="stat stat-orange">1</div>
+    <div class="stat-sub">CORE-30312: at risk of regression</div>
+  </div>
+  <div class="card">
+    <h3>Still Unfixed</h3>
+    <div class="stat stat-yellow">9</div>
+    <div class="stat-sub">No PR/commit found in repos</div>
+  </div>
+  <div class="card">
+    <h3>Cloud Contract Tests</h3>
+    <div class="stat stat-red">0</div>
+    <div class="stat-sub">Now directly verified, not inferred</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>What we found — contract test coverage by platform</h3>
+  <ul style="font-size: 0.9rem; margin-top: 12px;">
+    <li><strong>Cloud</strong> — no Pact, no schema validation at boundaries. Confirmed directly in the build files this refresh</li>
+    <li><strong>iOS</strong> — 12 CT + 3 INT for Port Security as of 2026-08-03. Elsewhere: 29 JSON fixtures + decoding tests that verify "doesn't crash", not that required fields are non-null or enums complete</li>
+    <li><strong>Android</strong> — 12 CT + 3 INT for Port Security as of 2026-07-30. Elsewhere: ~300 JSON fixtures, property-based round-trip tests and deserializer tests — none validating against the live API or enforcing field-level contracts</li>
+    <li><strong>Cross-platform</strong> — still no shared schema. iOS and Android interpret API responses independently, which is what produced 17 parity bugs this window</li>
+  </ul>
+</div>
+
+<p style="color: var(--muted); font-size: 0.85rem; margin-top: 16px;">The full per-ticket git-history audit table from the June/July analysis is unchanged and lives on the <a href="../2026-07-20/contract-integration-test-gap-analysis.html">July snapshot page</a>.</p>
+
+</div>
+
+<!-- ============ TAB 5: DESIGN & IMPLEMENTATION ============ -->
+<div id="tab-poc" class="tab-panel">
+
+<div class="callout">
+  <strong>Shipped.</strong> The Port Security contract + integration tests are merged on both platforms and gate every PR in the standard unit suite. Zero new dependencies, zero new CI jobs.<br>
+  Deep dive: <a href="../2026-07-20/macsec-contract-test-case-study.html">MACsec Port Security — Contract Test Case Study</a>. Cloud-side handoff: <a href="./contract-integration-testing-implementation-guide.html">Implementation Guide</a>.
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>Android — merged 2026-07-30</h3>
+    <p style="font-size: 0.9rem;">PR <strong>#13181</strong>, commit <code>dd9f38f4</code>, on <code>development</code>.</p>
+    <ul style="font-size: 0.9rem; margin-top: 10px;">
+      <li>12 <code>CT-*</code> tests in <code>app/src/test/kotlin/com/eero/android/contract/portsecurity/PortSecurityContractTest.kt</code></li>
+      <li>Fixtures in <code>PortSecurityFixtures.kt</code></li>
+      <li>3 <code>INT-001..003</code> tests in <code>PortDetailViewModelTest.kt</code></li>
+      <li>Standard unit source set — runs in the existing per-PR unit job</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>iOS — merged 2026-08-03</h3>
+    <p style="font-size: 0.9rem;">PR <strong>#14285</strong>, commit <code>74221e2c</code>.</p>
+    <ul style="font-size: 0.9rem; margin-top: 10px;">
+      <li>12 <code>@Test</code> scenarios (8 CT + 4 malformed) in <code>Eero/EeroNetworking/Tests/Port Security Tests/PortSecurityContractTests.swift</code></li>
+      <li>3 <code>INT-001..003</code> tests in <code>PortDetailsTests.swift</code>, wired against the real SUT</li>
+      <li>Standard unit suite — gates every PR</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout callout-warn">
+  <strong>Open follow-up from CORE-33235.</strong> Add the per-port derivation test to both platforms: for each port, <code>enabled</code> must equal the node-reported state for <em>that</em> port, never a paired port. The reference implementation is a good template and an incomplete one — see the <a href="#tab-ceiling" onclick="switchTab('ceiling', document.querySelectorAll('.tab-btn')[2])">ceiling tab</a>.
+</div>
+
+<div class="section-title">The design decision that mattered</div>
+<p style="font-size: 0.9rem; margin-bottom: 16px;">An earlier iteration gated these behind an opt-in <code>test:contract</code> job with a diff-scoped selection script and a <code>run-contract-tests</code> label. After discussing it with an Android engineer that was dropped in favour of the standard unit scope: the tests are fast, deterministic and dependency-free, so there is no reason to treat them differently from any other unit test. The merged Android PR touches four files, all under <code>app/src/test/</code>, and no CI config.</p>
+
+<div class="section-title">Phase 2 — extend to the top interfaces (2–4 weeks)</div>
+<p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 12px;">Reprioritized by this window's P0/P1 volume. Items 1 and 5 cannot be reached by a client-only test and need the provider-side work in the implementation guide.</p>
+<table>
+<thead><tr><th>#</th><th>Interface</th><th>Driving tickets</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><strong>Multi-WAN / WAN links</strong> — 19 bugs, 9 P0. <code>active</code> flag vs default route, <code>/config</code> omitting <code>wan</code>, orphaned connections on failure, <code>name</code> optionality across cloud and Apollo</td><td>CORE-32917, 33148, 33341, 33044, 33304, 33305, 32502</td></tr>
+<tr><td>2</td><td><strong>Speedtest provider overrides</strong> — 6 contract defects this window alone. Nullability, existence validation, layer resolution, dirty-check, provider enum, firmware-key normalization</td><td>CORE-32415, 32631, 32295, 32296, 33092, 33094</td></tr>
+<tr><td>3</td><td><strong>Capability tables over the hw-model enum</strong> — the Dejavu pair is one root cause surfacing twice. Exhaustiveness tests catch the whole class</td><td>CORE-32903 (cloud), CORE-33269 (clients)</td></tr>
+<tr><td>4</td><td><strong>Write→read round-trips on settings</strong> — SSID/password, bandwidth limit, accessory removal, addressing mode, profile resume</td><td>CORE-33320, 32463, 33188, 32327, 33364, 32515</td></tr>
+<tr><td>5</td><td><strong>Cloud error-code and emit-boundary contracts</strong> — gRPC status mapping, boolean field validation, non-finite gauges, DKV warm-up semantics, redirect status handling</td><td>CORE-33380, 32695, 33268, 33144, 32964</td></tr>
+</tbody>
+</table>
+
+<div class="section-title">Phase 3 — integration tests (4–8 weeks)</div>
+<p style="font-size: 0.9rem;">Cross-service state-transition tests: the invariant that a write is visible on the read path, and that a reported status matches physical reality. Start with the WAN <code>active</code> invariant (CORE-32917, 33148, 33341), setup-success honesty (CORE-33057, 33304), factory→cloud node sync (CORE-33309, 32469) and activation idempotency (CORE-33055). Run against staging or faked API clients, in existing suites, on every PR. The Android <code>PortDetailViewModel</code> INT pattern is directly reusable for the client half; the cloud half needs the provider-side work in the guide.</p>
+
+<div class="section-title">Next steps</div>
+<ol style="font-size: 0.9rem;">
+  <li>✅ <strong>Reference implementation merged</strong> — Android #13181 and iOS #14285, gating every PR</li>
+  <li><strong>Add the CORE-33235 derivation test</strong> to both platforms — small, and it closes a demonstrated gap in the pattern we are asking others to adopt</li>
+  <li><strong>Pick Multi-WAN as the next reference interface</strong> — 9 P0s and active development make it the highest-value target</li>
+  <li><strong>Hand the cloud side to Cloud Engineering</strong> — the <a href="./contract-integration-testing-implementation-guide.html">implementation guide</a> documents both approaches, verified against <code>eero-inc/cloud</code> at Scala 2.13.18 / sbt 1.12.1 / Play 2.9.10</li>
+  <li><strong>Review checkpoint at end of sprint</strong> — compare new PR-time contract-test failures against Sentry events and new CORE tickets on the same interfaces</li>
+</ol>
+
+</div>
+
+<script>
+const C = {
+  red: '#ef4444', orange: '#f97316', yellow: '#eab308',
+  green: '#22c55e', blue: '#3b82f6', purple: '#6366f1',
+  pink: '#ec4899', gray: '#6b7280'
+};
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = '#2a2d3a';
+
+function initCharts() {
+  // Tab 1 — August snapshot (W30–W35, 2026-07-21 → 2026-08-31)
+  new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+      labels: ['W30', 'W31', 'W32', 'W33', 'W34', 'W35'],
+      datasets: [
+        { label: 'P0 Blocker', data: [8, 6, 6, 13, 8, 16], backgroundColor: C.red, borderRadius: 4 },
+        { label: 'P1 Critical', data: [10, 18, 12, 15, 12, 2], backgroundColor: C.orange, borderRadius: 4 },
+        { label: 'P2 Major', data: [7, 21, 7, 19, 15, 10], backgroundColor: C.yellow, borderRadius: 4 },
+        { label: 'P3/P4', data: [24, 26, 21, 16, 14, 19], backgroundColor: C.gray, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { padding: 12 } } },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, grid: { color: '#1f2233' } } }
+    }
+  });
+
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['API Contract Violation (15)', 'Data Sync / State Mismatch (16)', 'Interface Parity / Schema Drift (17)'],
+      datasets: [{ data: [15, 16, 17], backgroundColor: [C.purple, C.green, C.pink], borderWidth: 0, spacing: 3 }]
+    },
+    options: { responsive: true, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { padding: 12 } } } }
+  });
+
+  new Chart(document.getElementById('priorityChart'), {
+    type: 'bar',
+    data: {
+      labels: ['P0 Blocker', 'P1 Critical', 'P2 Major', 'P3 Minor', 'P4 Trivial'],
+      datasets: [{ label: 'Bugs (6 weeks)', data: [57, 69, 79, 115, 5], backgroundColor: [C.red, C.orange, C.yellow, C.gray, '#374151'], borderRadius: 6, barThickness: 36 }]
+    },
+    options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#1f2233' } }, y: { grid: { display: false } } } }
+  });
+
+  new Chart(document.getElementById('componentChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Multi-WAN / WAN', 'eero Insight', 'Retrograde / cellular', 'Setup (DTV/Ladro/Leo)', 'Speedtest overrides', 'Reviewbot', 'eero Drones', 'Toaster / Harmony', 'MACsec'],
+      datasets: [{ label: 'Bugs', data: [19, 17, 11, 9, 7, 7, 5, 4, 2], backgroundColor: C.blue, borderRadius: 6, barThickness: 24 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#1f2233' } }, x: { grid: { display: false } } } }
+  });
+
+  // Tab 2 — May→August trend (W20–W35). W20–W29 carried from the July snapshot; W30–W35 measured this refresh.
+  new Chart(document.getElementById('sixtyTrendChart'), {
+    type: 'bar',
+    data: {
+      labels: ['W20','W21','W22','W23','W24','W25','W26','W27','W28','W29','W30','W31','W32','W33','W34','W35'],
+      datasets: [
+        { label: 'P0 Blocker', data: [3,5,7,10,8,5,5,4,3,14,8,6,6,13,8,16], backgroundColor: C.red, borderRadius: 4 },
+        { label: 'P1 Critical', data: [5,8,6,12,10,8,8,11,9,12,10,18,12,15,12,2], backgroundColor: C.orange, borderRadius: 4 },
+        { label: 'P2 Major', data: [8,12,11,14,10,8,6,22,16,17,7,21,7,19,15,10], backgroundColor: C.yellow, borderRadius: 4 },
+        { label: 'P3/P4', data: [8,14,13,40,36,20,40,10,31,18,24,26,21,16,14,19], backgroundColor: C.gray, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { padding: 12 } } },
+      scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, grid: { color: '#1f2233' } } }
+    }
+  });
+
+  new Chart(document.getElementById('rateChart'), {
+    type: 'bar',
+    data: {
+      labels: ['July refresh (24d)', 'August refresh (42d)'],
+      datasets: [
+        { label: 'Categorized bugs / week', data: [7.0, 8.0], backgroundColor: C.orange, borderRadius: 6, barThickness: 48 },
+        { label: 'All CORE bugs / week ÷ 10', data: [4.87, 5.42], backgroundColor: C.gray, borderRadius: 6, barThickness: 48 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { padding: 12 } } },
+      scales: { y: { beginAtZero: true, grid: { color: '#1f2233' } }, x: { grid: { display: false } } }
+    }
+  });
+
+  new Chart(document.getElementById('sixtyPriorityChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['P0 Blocker (57)', 'P1 Critical (69)', 'P2 Major (79)', 'P3 Minor (115)', 'P4 Trivial (5)'],
+      datasets: [{ data: [57, 69, 79, 115, 5], backgroundColor: [C.red, C.orange, C.yellow, C.gray, '#374151'], borderWidth: 0, spacing: 3 }]
+    },
+    options: { responsive: true, cutout: '55%', plugins: { legend: { position: 'bottom', labels: { padding: 12 } } } }
+  });
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+initCharts();
+</script>
+</body>
+</html>
