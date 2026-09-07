@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$title$</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --muted: #9ca3af;
+    --accent: #6366f1;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #eab308;
+    --green: #22c55e;
+    --blue: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .layout { display: flex; align-items: flex-start; max-width: 1500px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: flex-start;
+    width: 300px; flex: 0 0 300px;
+    max-height: 100vh; overflow-y: auto;
+    padding: 32px 20px 32px 24px;
+    border-right: 1px solid var(--border);
+    font-size: 0.82rem;
+  }
+  nav.toc > ul { list-style: none; margin: 0; }
+  nav.toc ul ul { list-style: none; margin-left: 12px; }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block; padding: 4px 8px; border-radius: 5px;
+    color: var(--muted); text-decoration: none; border-left: 2px solid transparent;
+  }
+  nav.toc a:hover { color: var(--text); background: rgba(99,102,241,0.08); text-decoration: none; }
+  nav.toc a.here { color: var(--accent); border-left-color: var(--accent); background: rgba(99,102,241,0.08); }
+  nav.toc::before {
+    content: 'Contents';
+    display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 12px; padding-left: 8px;
+  }
+  main { flex: 1 1 auto; min-width: 0; padding: 32px 40px 120px; max-width: 1000px; }
+
+  h1 { font-size: 1.9rem; margin-bottom: 16px; line-height: 1.25; }
+  h2 {
+    font-size: 1.3rem; margin: 44px 0 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border); scroll-margin-top: 20px;
+  }
+  h3 { font-size: 1.05rem; margin: 30px 0 10px; color: #c7d2fe; scroll-margin-top: 20px; }
+  h4 { font-size: 0.95rem; margin: 22px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; scroll-margin-top: 20px; }
+  p { margin-bottom: 14px; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 6px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 16px 0 22px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: bottom; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(99,102,241,0.05); }
+
+  code {
+    background: rgba(255,255,255,0.07); padding: 1.5px 5px; border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em;
+  }
+  pre {
+    background: #12141c; border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; margin: 16px 0 22px;
+    font-size: 0.82rem; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+  pre.mermaid, .mermaid { background: #12141c; text-align: center; }
+
+  blockquote {
+    background: rgba(239,68,68,0.07); border-left: 3px solid var(--red);
+    padding: 14px 20px; border-radius: 0 8px 8px 0; margin: 20px 0; font-size: 0.9rem;
+  }
+  blockquote p:last-child { margin-bottom: 0; }
+  blockquote strong { color: #fca5a5; }
+
+  .subtitle-block { color: var(--muted); font-size: 0.9rem; margin-bottom: 8px; }
+
+  /* Syntax highlighting (pandoc skylighting) — dark */
+  code span.kw { color: #c792ea; }
+  code span.dt, code span.dv { color: #ffcb6b; }
+  code span.st, code span.ss, code span.vs { color: #c3e88d; }
+  code span.co { color: #6b7280; font-style: italic; }
+  code span.dl { color: #c3e88d; }
+  code span.fu { color: #82aaff; }
+  code span.at { color: #f78c6c; }
+  code span.cn, code span.bn, code span.fl { color: #f78c6c; }
+  code span.op { color: #89ddff; }
+  code span.va { color: #eeffff; }
+  code span.an { color: #c792ea; }
+  code span.er, code span.al { color: var(--red); }
+
+  @media (max-width: 1100px) {
+    .layout { display: block; }
+    nav.toc { position: static; width: auto; max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 24px 20px 80px; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+$toc$
+</nav>
+<main>
+$body$
+</main>
+</div>
+
+<script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+// Pandoc wraps fenced mermaid blocks as <pre class="mermaid"><code>...</code></pre>.
+// Mermaid needs the raw graph text as the element's only content.
+document.querySelectorAll('pre.mermaid').forEach(pre => {
+  const code = pre.querySelector('code');
+  if (code) pre.textContent = code.textContent;
+});
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: { background: '#12141c', primaryColor: '#1a1d27', primaryTextColor: '#e4e4e7', lineColor: '#6366f1' }
+});
+await mermaid.run({ querySelector: 'pre.mermaid' });
+</script>
+
+<script>
+// Highlight the current section in the sidebar.
+const heads = [...document.querySelectorAll('main h2[id], main h3[id]')];
+const links = new Map([...document.querySelectorAll('nav.toc a')].map(a => [a.getAttribute('href')?.slice(1), a]));
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    const a = links.get(e.target.id);
+    if (!a) return;
+    if (e.isIntersecting) {
+      document.querySelectorAll('nav.toc a.here').forEach(x => x.classList.remove('here'));
+      a.classList.add('here');
+    }
+  });
+}, { rootMargin: '0px 0px -75% 0px' });
+heads.forEach(h => obs.observe(h));
+</script>
+</body>
+</html>
